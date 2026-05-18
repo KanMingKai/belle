@@ -329,33 +329,64 @@ body {
   cursor:pointer;transition:all 0.2s;
 }
 .prof-edit-btn:hover { border-color:rgba(164,137,119,0.6);color:var(--sand); }
+/* ── FEATURED VIDEO ── */
+.featured {
+  margin:8px 12px;border-radius:14px;height:160px;
+  background:linear-gradient(145deg,#3a2518,#1c1009);
+  position:relative;overflow:hidden;flex-shrink:0;
+  border:1px solid rgba(164,137,119,0.1);
+}
+.featured video {
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+}
+.feat-dur {
+  position:absolute;top:10px;right:10px;font-size:9px;
+  color:rgba(212,184,150,0.7);background:rgba(0,0,0,0.4);
+  padding:2px 8px;border-radius:10px;letter-spacing:0.5px;z-index:2;
+}
+.feat-info {
+  position:absolute;bottom:0;left:0;right:0;z-index:2;
+  padding:32px 14px 12px;
+  background:linear-gradient(to top,rgba(10,7,4,0.9),transparent);
+}
+.feat-label {
+  font-size:8px;letter-spacing:3px;color:var(--sand);
+  text-transform:uppercase;opacity:0.7;margin-bottom:3px;
+}
+.feat-title {
+  font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+  font-size:15px;color:var(--cream);
+}
+/* ── GRID HEADER ── */
+.grid-hdr {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 16px 4px;flex-shrink:0;
+}
+.grid-hdr-label { font-size:9px;letter-spacing:3px;color:rgba(164,137,119,0.45);text-transform:uppercase; }
+.grid-hdr-count { font-size:9px;color:rgba(164,137,119,0.3); }
+/* ── VIDEO GRID ── */
 .vids-grid {
-  flex:1;overflow-y:auto;
-  display:grid;grid-template-columns:repeat(2,1fr);gap:2px;padding:2px;
+  flex:1;min-height:0;overflow-y:auto;
+  display:grid;grid-template-columns:repeat(3,1fr);align-content:start;gap:2px;padding:0 2px 2px;
 }
 .vids-grid::-webkit-scrollbar { display:none; }
 .vid-cell {
-  aspect-ratio:9/8;position:relative;overflow:hidden;cursor:pointer;
+  aspect-ratio:1;position:relative;overflow:hidden;cursor:pointer;
   background:linear-gradient(145deg,#2e1e14,#180f0a);
 }
 .vid-cell video { width:100%;height:100%;object-fit:cover; }
-.vid-cell-play {
-  position:absolute;inset:0;display:flex;align-items:center;
-  justify-content:center;font-size:18px;color:rgba(212,184,150,0.25);
-}
-.vid-cell-title {
-  position:absolute;bottom:16px;left:4px;right:4px;font-size:8px;
-  color:rgba(212,184,150,0.7);text-overflow:ellipsis;overflow:hidden;
-  white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,0.8);
-}
 .vid-cell-del {
-  position:absolute;top:5px;right:5px;
-  width:22px;height:22px;border-radius:50%;
-  background:rgba(0,0,0,0.55);display:flex;align-items:center;
-  justify-content:center;font-size:11px;color:rgba(255,255,255,0.7);
-  cursor:pointer;opacity:0;transition:opacity 0.2s;
+  position:absolute;top:4px;right:4px;
+  width:20px;height:20px;border-radius:50%;
+  background:rgba(0,0,0,0.5);display:flex;align-items:center;
+  justify-content:center;font-size:9px;color:rgba(255,255,255,0.65);
+  cursor:pointer;z-index:2;
 }
-.vid-cell:hover .vid-cell-del { opacity:1; }
+.vid-cell-slot {
+  position:absolute;bottom:4px;left:4px;right:4px;font-size:7px;
+  color:rgba(212,184,150,0.6);letter-spacing:1px;
+  text-shadow:0 1px 3px rgba(0,0,0,0.8);overflow:hidden;white-space:nowrap;
+}
 .vids-empty {
   grid-column:1/-1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:60px 20px;text-align:center;
@@ -1160,6 +1191,18 @@ body {
       </div>
       <div class="prof-edit-btn" onclick="goSubScreen('edit-profile')">編輯</div>
     </div>
+    <div class="featured" id="featuredBlock">
+      <video id="featVideo" muted playsinline></video>
+      <div class="feat-dur" id="featDur">—</div>
+      <div class="feat-info">
+        <div class="feat-label" id="featLabel">今日 vlog</div>
+        <div class="feat-title" id="featTitle">尚無影片</div>
+      </div>
+    </div>
+    <div class="grid-hdr">
+      <div class="grid-hdr-label">所有影片</div>
+      <div class="grid-hdr-count" id="gridCount">0 部</div>
+    </div>
     <div class="vids-grid" id="vidsGrid">
       <div class="vids-empty" style="grid-column:1/-1">
         <div class="vids-empty-ico">🎬</div>
@@ -1890,34 +1933,72 @@ async function addSearchFavorite() {
 }
 
 // ── My Videos ──
+var featPlaylist = [];
+var featIdx = 0;
+
+function buildFeatPlaylist() {
+  const today = new Date().toISOString().slice(0, 10);
+  featPlaylist = myVids
+    .filter(v => v.time_slot && v.time_slot.startsWith(today))
+    .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+  if (!featPlaylist.length) {
+    featPlaylist = [...myVids].sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+  }
+}
+
+function playFeatAt(idx) {
+  if (!featPlaylist.length) return;
+  featIdx = idx;
+  const v = featPlaylist[idx];
+  const vid = document.getElementById('featVideo');
+  vid.src = v.url ? qualifyUrl(v.url) : '';
+  vid.play().catch(() => {});
+  document.getElementById('featLabel').textContent = slotGreeting(v.time_slot);
+  document.getElementById('featTitle').textContent = v.title || '無標題';
+  document.getElementById('featDur').textContent = (idx + 1) + ' / ' + featPlaylist.length;
+}
+
+function initFeatured() {
+  buildFeatPlaylist();
+  const vid = document.getElementById('featVideo');
+  if (!featPlaylist.length) {
+    vid.src = '';
+    document.getElementById('featTitle').textContent = '尚無影片';
+    document.getElementById('featDur').textContent = '—';
+    return;
+  }
+  vid.onended = function () {
+    playFeatAt((featIdx + 1) % featPlaylist.length);
+  };
+  playFeatAt(0);
+}
+
 async function initMyVideos() {
   syncUI();
   try {
     myVids = await getUserVideos(CU.uid);
   } catch (e) { myVids = []; }
   renderGrid();
+  initFeatured();
 }
 
 function renderGrid() {
   const grid = document.getElementById('vidsGrid');
+  document.getElementById('gridCount').textContent = myVids.length + ' 部';
   if (!myVids.length) {
     grid.innerHTML = `<div class="vids-empty" style="grid-column:1/-1"><div class="vids-empty-ico">🎬</div><div class="vids-empty-txt">還沒有影片</div></div>`;
     return;
   }
   grid.innerHTML = '';
-  myVids.forEach((v, i) => {
+  myVids.forEach((v) => {
     const cell = document.createElement('div');
     cell.className = 'vid-cell';
-    const thumb = v.thumbnail_url || '';
-    const imgOrVideo = thumb
-      ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">`
-      : `<video src="${v.url}" preload="none" muted style="width:100%;height:100%;object-fit:cover;"></video>`;
+    const slotParts = (v.time_slot || '').split('_');
+    const timeStr = slotParts[1] ? slotParts[1].replace('-', ':') : '';
     cell.innerHTML = `
-      ${imgOrVideo}
-      <div class="vid-cell-play">▶</div>
-      <div class="vid-cell-title">${v.title || '無標題'}</div>
+      <video src="${v.url ? qualifyUrl(v.url) : ''}" autoplay muted loop playsinline></video>
+      <div class="vid-cell-slot">${timeStr}</div>
       <div class="vid-cell-del" onclick="delVid(event,'${v.id}')">✕</div>`;
-    cell.addEventListener('click', function() { openMyVidPlayer(i); });
     grid.appendChild(cell);
   });
 }
@@ -1929,7 +2010,17 @@ async function delVid(e, id) {
     await deleteVideo(id);
     myVids = myVids.filter(v => v.id !== id);
     feedVids = feedVids.filter(v => v.id !== id);
+    featPlaylist = featPlaylist.filter(v => v.id !== id);
     renderGrid();
+    if (featPlaylist.length) {
+      const nextIdx = Math.min(featIdx, featPlaylist.length - 1);
+      playFeatAt(nextIdx);
+    } else {
+      const vid = document.getElementById('featVideo');
+      vid.src = '';
+      document.getElementById('featTitle').textContent = '尚無影片';
+      document.getElementById('featDur').textContent = '—';
+    }
     toast('✓ 影片已刪除');
   } catch (e) { toast('✗ 刪除失敗：' + e.message); }
 }

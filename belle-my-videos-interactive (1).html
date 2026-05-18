@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Belle · 我的影片</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Cinzel:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --brown: #A48977;
+  --cream: #EAE7DA;
+  --sand: #D4B896;
+  --dark-brown: #6B5344;
+  --bg: #0d0a08;
+  --surface: #161210;
+  --border: rgba(164,137,119,0.12);
+  --text-dim: rgba(212,184,150,0.4);
+  --text-mid: rgba(212,184,150,0.7);
+}
+
+body {
+  background: #0e0b09;
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 60px;
+  gap: 28px;
+}
+
+.page-top { text-align: center; }
+.eyebrow { color: var(--sand); font-size: 10px; letter-spacing: 6px; text-transform: uppercase; opacity: 0.5; margin-bottom: 10px; }
+.page-top h1 { font-family: 'Playfair Display', serif; font-style: italic; color: var(--cream); font-size: 22px; font-weight: 400; }
+.rule { width: 44px; height: 1px; background: linear-gradient(90deg, transparent, var(--brown), transparent); margin: 10px auto 0; }
+
+/* ── PHONE ── */
+.phone {
+  width: 320px; height: 650px;
+  border-radius: 40px; overflow: hidden;
+  border: 7px solid #221a14;
+  box-shadow: 0 0 0 1px rgba(164,137,119,0.13), 0 30px 70px rgba(0,0,0,0.65);
+  position: relative; background: var(--bg);
+}
+
+/* ── SCREENS ── */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
+  will-change: transform;
+}
+.screen.hidden { transform: translateX(100%); opacity: 0; pointer-events: none; }
+.screen.slide-up { transform: translateY(100%); opacity: 0; pointer-events: none; }
+
+/* ── SHARED ATOMS ── */
+.logo-wrap { display: flex; align-items: center; gap: 7px; }
+.logo-circle {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--brown);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 11px; color: var(--sand);
+}
+.logo-text { font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 4px; color: var(--cream); }
+
+.hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px; flex-shrink: 0;
+}
+.hdr-icons { display: flex; gap: 12px; font-size: 17px; color: rgba(212,184,150,0.38); }
+.hdr-icon-btn { cursor: pointer; transition: color 0.2s; }
+.hdr-icon-btn:hover { color: var(--sand); }
+
+.back-btn {
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(212,184,150,0.5); font-size: 13px; cursor: pointer;
+  transition: color 0.2s; letter-spacing: 0.3px;
+}
+.back-btn:hover { color: var(--sand); }
+.back-arrow { font-size: 16px; }
+
+.bnav {
+  display: flex; padding: 8px 0 14px;
+  border-top: 1px solid var(--border);
+  background: rgba(13,10,8,0.98); flex-shrink: 0;
+}
+.bnav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 3px; font-size: 8px; color: rgba(164,137,119,0.3); letter-spacing: 0.5px;
+}
+.bnav-item.active { color: var(--sand); }
+.bnav-icon { font-size: 15px; }
+.bnav-plus { flex: 1; display: flex; align-items: center; justify-content: center; }
+.bnav-plus-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--brown);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: var(--cream);
+  margin-top: -6px; box-shadow: 0 4px 14px rgba(164,137,119,0.3);
+}
+
+/* ══════════════════════════════
+   SCREEN 1 · MY VIDEOS
+══════════════════════════════ */
+.profile {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px 14px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.av {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #a07060, #5c3d2e);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 20px; color: var(--cream);
+  border: 2px solid rgba(164,137,119,0.35); flex-shrink: 0;
+  position: relative; overflow: hidden; cursor: pointer;
+}
+.av-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+  font-size: 14px; color: var(--cream);
+}
+.av:hover .av-overlay { opacity: 1; }
+
+.pinfo { flex: 1; }
+.pname { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: var(--cream); letter-spacing: 0.5px; }
+.phandle { font-size: 10px; color: var(--text-dim); margin-top: 2px; letter-spacing: 0.5px; }
+
+.edit-btn {
+  padding: 7px 16px; border-radius: 20px;
+  border: 1px solid rgba(164,137,119,0.32);
+  color: rgba(212,184,150,0.55); font-size: 10px; letter-spacing: 0.5px;
+  flex-shrink: 0; cursor: pointer; transition: all 0.2s;
+}
+.edit-btn:hover { border-color: rgba(164,137,119,0.6); color: var(--sand); }
+
+.featured {
+  margin: 12px 12px 8px;
+  border-radius: 16px; height: 148px;
+  background: linear-gradient(145deg, #3a2518 0%, #1c1009 100%);
+  position: relative; overflow: hidden; flex-shrink: 0;
+  border: 1px solid rgba(164,137,119,0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.featured::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 65% 35%, rgba(164,137,119,0.08) 0%, transparent 65%);
+}
+.feat-play {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -60%);
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(164,137,119,0.15); border: 1.5px solid rgba(164,137,119,0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.feat-play::after {
+  content: ''; border-left: 14px solid rgba(212,184,150,0.88);
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent; margin-left: 3px;
+}
+.feat-dur {
+  position: absolute; top: 10px; right: 10px; font-size: 9px;
+  color: rgba(212,184,150,0.6); background: rgba(0,0,0,0.35);
+  padding: 2px 7px; border-radius: 10px; letter-spacing: 0.5px;
+}
+.feat-info {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 32px 14px 12px;
+  background: linear-gradient(to top, rgba(10,7,4,0.92), transparent);
+}
+.feat-label { font-size: 8px; letter-spacing: 3px; color: var(--sand); text-transform: uppercase; opacity: 0.7; margin-bottom: 3px; }
+.feat-title { font-family: 'Playfair Display', serif; font-size: 13px; color: var(--cream); font-weight: 400; }
+
+.grid-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 16px 6px; flex-shrink: 0;
+}
+.grid-hdr-label { font-size: 9px; letter-spacing: 3px; color: rgba(164,137,119,0.45); text-transform: uppercase; }
+.grid-hdr-count { font-size: 9px; color: rgba(164,137,119,0.3); }
+
+.grid {
+  flex: 1; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 2px; padding: 0 2px 2px;
+}
+.grid::-webkit-scrollbar { display: none; }
+
+.cell { aspect-ratio: 1; position: relative; overflow: hidden; cursor: pointer; }
+.cell:nth-child(1) { background: linear-gradient(145deg, #2e1e14, #180f0a); }
+.cell:nth-child(2) { background: linear-gradient(145deg, #241810, #130d08); }
+.cell:nth-child(3) { background: linear-gradient(145deg, #3a2018, #1e1009); }
+.cell:nth-child(4) { background: linear-gradient(145deg, #1e1510, #100c07); }
+.cell:nth-child(5) { background: linear-gradient(145deg, #2a1c12, #170e09); }
+.cell:nth-child(6) { background: linear-gradient(145deg, #321f14, #1b1009); }
+.cell:nth-child(7) { background: linear-gradient(145deg, #261a12, #140e09); }
+.cell:nth-child(8) { background: linear-gradient(145deg, #2e2014, #180f0a); }
+.cell:nth-child(9) { background: linear-gradient(145deg, #1c1510, #0f0c08); }
+
+.cell-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: rgba(212,184,150,0.18); }
+.cell-dur { position: absolute; bottom: 5px; right: 6px; font-size: 8px; color: rgba(212,184,150,0.65); text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+
+/* ══════════════════════════════
+   SCREEN 2 · EDIT PROFILE
+══════════════════════════════ */
+.edit-screen-body {
+  flex: 1; overflow-y: auto; padding: 0 20px 20px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.edit-screen-body::-webkit-scrollbar { display: none; }
+
+/* Avatar edit */
+.edit-av-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding-top: 8px;
+}
+.edit-av {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #a07060, #5c3d2e);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 26px; color: var(--cream);
+  border: 2px solid rgba(164,137,119,0.4);
+  position: relative; overflow: hidden; cursor: pointer;
+}
+.edit-av-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+}
+.edit-av-overlay span { font-size: 16px; }
+.edit-av-overlay small { font-size: 8px; color: rgba(255,255,255,0.7); letter-spacing: 0.5px; }
+.edit-av-hint { font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; }
+
+/* Field group */
+.field-group { display: flex; flex-direction: column; gap: 14px; }
+.field-section-label {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  color: rgba(164,137,119,0.4); padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+.field input, .field textarea {
+  background: rgba(164,137,119,0.06);
+  border: 1px solid rgba(164,137,119,0.18);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 12px; color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.2s;
+  width: 100%;
+}
+.field input:focus, .field textarea:focus {
+  border-color: rgba(164,137,119,0.5);
+  background: rgba(164,137,119,0.1);
+}
+.field input::placeholder, .field textarea::placeholder { color: rgba(212,184,150,0.25); }
+.field textarea { resize: none; height: 70px; line-height: 1.6; }
+.field-hint { font-size: 9px; color: rgba(164,137,119,0.3); letter-spacing: 0.3px; }
+
+/* Save button */
+.save-btn {
+  width: 100%; padding: 12px;
+  border-radius: 24px;
+  background: var(--brown);
+  color: var(--cream); font-size: 12px; letter-spacing: 2px;
+  text-transform: uppercase; cursor: pointer;
+  border: none; font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.2s; margin-top: 4px;
+}
+.save-btn:hover { opacity: 0.85; }
+
+/* Toast */
+.toast {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(164,137,119,0.9); color: var(--cream);
+  padding: 8px 20px; border-radius: 20px; font-size: 11px;
+  letter-spacing: 1px; white-space: nowrap;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 99;
+}
+.toast.show { opacity: 1; }
+
+/* ══════════════════════════════
+   SCREEN 3 · SETTINGS
+══════════════════════════════ */
+.settings-body {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: 8px 0 16px;
+}
+.settings-body::-webkit-scrollbar { display: none; }
+
+.settings-section { margin-bottom: 6px; }
+.settings-section-label {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  color: rgba(164,137,119,0.38); padding: 12px 20px 6px;
+}
+.settings-row {
+  display: flex; align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+}
+.settings-row:hover { background: rgba(164,137,119,0.04); }
+.settings-row:first-of-type { border-top: 1px solid var(--border); }
+
+.settings-row-icon { font-size: 18px; margin-right: 14px; opacity: 0.6; }
+.settings-row-info { flex: 1; }
+.settings-row-title { font-size: 13px; color: var(--cream); letter-spacing: 0.3px; }
+.settings-row-sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; letter-spacing: 0.3px; }
+.settings-row-arrow { font-size: 14px; color: rgba(164,137,119,0.25); }
+
+.settings-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+.logout-row {
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 20px; cursor: pointer;
+  color: rgba(180,90,90,0.7); font-size: 13px; letter-spacing: 1px;
+  gap: 8px; transition: color 0.2s; margin-top: 4px;
+}
+.logout-row:hover { color: rgba(200,100,100,0.95); }
+
+/* ══════════════════════════════
+   SCREEN 4 · ACCOUNT SETTINGS
+══════════════════════════════ */
+.acct-body {
+  flex: 1; overflow-y: auto;
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.acct-body::-webkit-scrollbar { display: none; }
+
+.acct-section { display: flex; flex-direction: column; gap: 12px; }
+.acct-section-label {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  color: rgba(164,137,119,0.4); padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.acct-field { display: flex; flex-direction: column; gap: 5px; }
+.acct-field label { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+.acct-field input {
+  background: rgba(164,137,119,0.06);
+  border: 1px solid rgba(164,137,119,0.18);
+  border-radius: 10px; padding: 9px 12px;
+  font-size: 12px; color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.2s; width: 100%;
+}
+.acct-field input:focus {
+  border-color: rgba(164,137,119,0.5);
+  background: rgba(164,137,119,0.1);
+}
+.acct-field input::placeholder { color: rgba(212,184,150,0.25); }
+
+.acct-note {
+  font-size: 10px; color: rgba(164,137,119,0.35);
+  line-height: 1.6; letter-spacing: 0.3px;
+  padding: 10px 12px;
+  background: rgba(164,137,119,0.04);
+  border-radius: 10px; border: 1px solid var(--border);
+}
+
+.acct-save-btn {
+  width: 100%; padding: 12px;
+  border-radius: 24px; background: var(--brown);
+  color: var(--cream); font-size: 12px; letter-spacing: 2px;
+  text-transform: uppercase; cursor: pointer; border: none;
+  font-family: 'DM Sans', sans-serif; transition: opacity 0.2s;
+}
+.acct-save-btn:hover { opacity: 0.85; }
+
+/* ══════════════════════════════
+   LOGOUT MODAL
+══════════════════════════════ */
+.modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 50;
+  display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
+.modal-sheet {
+  width: 100%; background: #1e1610;
+  border-radius: 24px 24px 0 0;
+  padding: 20px 24px 32px;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  border-top: 1px solid rgba(164,137,119,0.15);
+}
+.modal-backdrop.open .modal-sheet { transform: translateY(0); }
+.modal-handle {
+  width: 36px; height: 3px; border-radius: 2px;
+  background: rgba(164,137,119,0.25); margin: 0 auto 20px;
+}
+.modal-title {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: 17px; color: var(--cream); margin-bottom: 8px; text-align: center;
+}
+.modal-sub { font-size: 11px; color: var(--text-dim); text-align: center; margin-bottom: 24px; letter-spacing: 0.3px; }
+.modal-btn {
+  width: 100%; padding: 13px; border-radius: 24px;
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; border: none; font-family: 'DM Sans', sans-serif;
+  margin-bottom: 10px; transition: opacity 0.2s;
+}
+.modal-btn.danger { background: rgba(180,70,70,0.85); color: #ffe8e8; }
+.modal-btn.danger:hover { opacity: 0.85; }
+.modal-btn.cancel { background: rgba(164,137,119,0.12); color: var(--text-mid); border: 1px solid var(--border); }
+.modal-btn.cancel:hover { background: rgba(164,137,119,0.2); }
+
+</style>
+</head>
+<body>
+
+<div class="page-top">
+  <div class="eyebrow">Belle · 我的影片</div>
+  <h1>互動完整版</h1>
+  <div class="rule"></div>
+</div>
+
+<div class="phone">
+
+  <!-- ══ SCREEN 1: MY VIDEOS ══ -->
+  <div class="screen" id="screen-main">
+    <div class="hdr">
+      <div class="logo-wrap">
+        <div class="logo-circle">B</div>
+        <div class="logo-text">BELLE</div>
+      </div>
+      <div class="hdr-icons">
+        <span class="hdr-icon-btn" onclick="goTo('screen-settings')" title="設定">⚙</span>
+      </div>
+    </div>
+
+    <div class="profile">
+      <div class="av" onclick="goTo('screen-edit')">
+        L
+        <div class="av-overlay">✎</div>
+      </div>
+      <div class="pinfo">
+        <div class="pname" id="display-name">Lena Studio</div>
+        <div class="phandle" id="display-handle">@lena840328</div>
+      </div>
+      <div class="edit-btn" onclick="goTo('screen-edit')">編輯</div>
+    </div>
+
+    <div class="featured">
+      <div class="feat-play"></div>
+      <div class="feat-dur">04:32</div>
+      <div class="feat-info">
+        <div class="feat-label">最新上傳</div>
+        <div class="feat-title">日常美學 · 秋日穿搭</div>
+      </div>
+    </div>
+
+    <div class="grid-hdr">
+      <div class="grid-hdr-label">所有影片</div>
+      <div class="grid-hdr-count">24 部</div>
+    </div>
+
+    <div class="grid">
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">02:18</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">07:04</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">04:32</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">03:55</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">05:11</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">01:47</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">06:23</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">03:09</div></div>
+      <div class="cell"><div class="cell-play">▶</div><div class="cell-dur">08:45</div></div>
+    </div>
+
+    <div class="bnav">
+      <div class="bnav-item"><div class="bnav-icon">⊞</div>朋友</div>
+      <div class="bnav-item"><div class="bnav-icon">◎</div>好友</div>
+      <div class="bnav-plus"><div class="bnav-plus-btn">＋</div></div>
+      <div class="bnav-item"><div class="bnav-icon">☆</div>收藏</div>
+      <div class="bnav-item active"><div class="bnav-icon">◉</div>我的</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 2: EDIT PROFILE ══ -->
+  <div class="screen hidden" id="screen-edit">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack('screen-main')">
+        <span class="back-arrow">←</span> 返回
+      </div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">編輯資料</div>
+      <div style="width:48px"></div>
+    </div>
+
+    <div class="edit-screen-body">
+
+      <!-- Avatar -->
+      <div class="edit-av-wrap">
+        <div class="edit-av" onclick="triggerAvatarUpload()">
+          L
+          <div class="edit-av-overlay">
+            <span>📷</span>
+            <small>更換頭像</small>
+          </div>
+        </div>
+        <div class="edit-av-hint">點擊更換頭像</div>
+        <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
+      </div>
+
+      <!-- Fields -->
+      <div class="field-group">
+        <div class="field-section-label">基本資料</div>
+
+        <div class="field">
+          <label>顯示名稱</label>
+          <input type="text" id="edit-name" value="Lena Studio" placeholder="你的名稱">
+        </div>
+
+        <div class="field">
+          <label>帳號 ID</label>
+          <input type="text" id="edit-handle" value="lena840328" placeholder="帳號名稱">
+          <div class="field-hint">帳號 ID 變更後其他人可搜尋到你</div>
+        </div>
+
+        <div class="field">
+          <label>個人簡介</label>
+          <textarea id="edit-bio" placeholder="介紹一下自己…">日常美學・生活記錄・秋日光影</textarea>
+        </div>
+      </div>
+
+      <button class="save-btn" onclick="saveProfile()">儲存變更</button>
+
+    </div>
+
+    <div class="toast" id="edit-toast">✓ 資料已更新</div>
+  </div>
+
+  <!-- ══ SCREEN 3: SETTINGS ══ -->
+  <div class="screen hidden" id="screen-settings">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack('screen-main')">
+        <span class="back-arrow">←</span> 返回
+      </div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">設定</div>
+      <div style="width:48px"></div>
+    </div>
+
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-label">帳號</div>
+        <div class="settings-row" onclick="goTo('screen-account')">
+          <div class="settings-row-icon">🔐</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">帳號設定</div>
+            <div class="settings-row-sub">變更密碼、信箱地址</div>
+          </div>
+          <div class="settings-row-arrow">›</div>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div class="logout-row" onclick="openLogoutModal()">
+        <span>→</span> 登出帳號
+      </div>
+    </div>
+
+    <div class="bnav">
+      <div class="bnav-item"><div class="bnav-icon">⊞</div>朋友</div>
+      <div class="bnav-item"><div class="bnav-icon">◎</div>好友</div>
+      <div class="bnav-plus"><div class="bnav-plus-btn">＋</div></div>
+      <div class="bnav-item"><div class="bnav-icon">☆</div>收藏</div>
+      <div class="bnav-item active"><div class="bnav-icon">◉</div>我的</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 4: ACCOUNT SETTINGS ══ -->
+  <div class="screen hidden" id="screen-account">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack('screen-settings')">
+        <span class="back-arrow">←</span> 返回
+      </div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">帳號設定</div>
+      <div style="width:48px"></div>
+    </div>
+
+    <div class="acct-body">
+
+      <div class="acct-section">
+        <div class="acct-section-label">信箱</div>
+        <div class="acct-field">
+          <label>目前信箱</label>
+          <input type="email" value="lena@example.com" readonly style="opacity:0.5;cursor:default">
+        </div>
+        <div class="acct-field">
+          <label>新信箱</label>
+          <input type="email" id="new-email" placeholder="輸入新的信箱地址">
+        </div>
+        <div class="acct-note">變更信箱後需要重新驗證，請確認新信箱可以正常收信。</div>
+      </div>
+
+      <div class="acct-section">
+        <div class="acct-section-label">密碼</div>
+        <div class="acct-field">
+          <label>目前密碼</label>
+          <input type="password" id="current-pw" placeholder="輸入目前密碼">
+        </div>
+        <div class="acct-field">
+          <label>新密碼</label>
+          <input type="password" id="new-pw" placeholder="至少 8 個字元">
+        </div>
+        <div class="acct-field">
+          <label>確認新密碼</label>
+          <input type="password" id="confirm-pw" placeholder="再次輸入新密碼">
+        </div>
+      </div>
+
+      <button class="acct-save-btn" onclick="saveAccount()">儲存變更</button>
+
+    </div>
+
+    <div class="toast" id="acct-toast">✓ 帳號資料已更新</div>
+  </div>
+
+  <!-- ══ LOGOUT MODAL ══ -->
+  <div class="modal-backdrop" id="logout-modal" onclick="handleModalBackdropClick(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">確定要登出嗎？</div>
+      <div class="modal-sub">登出後需重新輸入帳號密碼才能進入</div>
+      <button class="modal-btn danger" onclick="confirmLogout()">登出</button>
+      <button class="modal-btn cancel" onclick="closeLogoutModal()">取消</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Navigation ──
+let history = [];
+
+function goTo(id) {
+  const current = document.querySelector('.screen:not(.hidden)');
+  history.push(current.id);
+  current.classList.add('hidden');
+  const next = document.getElementById(id);
+  next.classList.remove('hidden');
+  next.classList.remove('slide-up');
+}
+
+function goBack(targetId) {
+  const current = document.querySelector('.screen:not(.hidden)');
+  current.classList.add('hidden');
+  const target = document.getElementById(targetId);
+  target.classList.remove('hidden');
+  history = history.filter(h => h !== targetId);
+}
+
+// ── Edit Profile ──
+function triggerAvatarUpload() {
+  document.getElementById('avatar-input').click();
+}
+
+function handleAvatarChange(input) {
+  if (input.files && input.files[0]) {
+    showToast('edit-toast', '✓ 頭像已更換');
+  }
+}
+
+function saveProfile() {
+  const name = document.getElementById('edit-name').value.trim();
+  const handle = document.getElementById('edit-handle').value.trim();
+
+  if (name) document.getElementById('display-name').textContent = name;
+  if (handle) document.getElementById('display-handle').textContent = '@' + handle.replace(/^@/, '');
+
+  showToast('edit-toast', '✓ 資料已更新');
+
+  setTimeout(() => goBack('screen-main'), 1200);
+}
+
+// ── Account Settings ──
+function saveAccount() {
+  const newPw = document.getElementById('new-pw').value;
+  const confirmPw = document.getElementById('confirm-pw').value;
+  const newEmail = document.getElementById('new-email').value;
+
+  if (newPw && newPw !== confirmPw) {
+    showToast('acct-toast', '✗ 兩次密碼不一致');
+    return;
+  }
+  if (newPw && newPw.length < 8) {
+    showToast('acct-toast', '✗ 密碼至少需 8 個字元');
+    return;
+  }
+
+  showToast('acct-toast', '✓ 帳號資料已更新');
+
+  // Clear password fields
+  document.getElementById('current-pw').value = '';
+  document.getElementById('new-pw').value = '';
+  document.getElementById('confirm-pw').value = '';
+
+  setTimeout(() => goBack('screen-settings'), 1200);
+}
+
+// ── Logout ──
+function openLogoutModal() {
+  document.getElementById('logout-modal').classList.add('open');
+}
+function closeLogoutModal() {
+  document.getElementById('logout-modal').classList.remove('open');
+}
+function handleModalBackdropClick(e) {
+  if (e.target === document.getElementById('logout-modal')) closeLogoutModal();
+}
+function confirmLogout() {
+  closeLogoutModal();
+  // Reset to main and show feedback
+  setTimeout(() => {
+    goBack('screen-main');
+    // Could redirect to login in real app
+  }, 200);
+}
+
+// ── Toast ──
+function showToast(id, msg) {
+  const t = document.getElementById(id);
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+
+</body>
+</html>
