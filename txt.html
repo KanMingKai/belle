@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&family=Josefin+Sans:wght@100&display=swap" rel="stylesheet">
+<style>
+  /* 浮水印容器 — 疊在影片上方 */
+  .watermark {
+    position: absolute;   /* 或 fixed，依你的影片容器而定 */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 20px;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    opacity: 0.75;
+    pointer-events: none; /* 不影響影片操作 */
+  }
+
+  .watermark .accent-line {
+    width: 2px;
+    height: 28px;
+    background: #fff;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+  }
+
+  .watermark .eng {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: #fff;
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .watermark .tag {
+    font-family: 'Josefin Sans', sans-serif;
+    font-weight: 100;
+    font-size: 7px;
+    letter-spacing: 0.5em;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 影片容器 -->
+  <div style="position: relative; width: 100%; max-width: 900px;">
+    <video src="your-video.mp4" style="width:100%; display:block;" controls></video>
+
+    <!-- 浮水印 -->
+    <div class="watermark">
+      <div class="accent-line"></div>
+      <div>
+        <div class="eng">Good Morning</div>
+        <div class="tag">a gentle beginning</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
