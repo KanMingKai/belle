@@ -1659,7 +1659,7 @@ function renderSplitPair() {
   const botPh  = document.getElementById('splitBotPh');
 
   if (pair.mine && pair.mine.url) {
-    topVid.src = pair.mine.url;
+    topVid.src = qualifyUrl(pair.mine.url);
     topVid.style.display = 'block';
     topPh.style.display = 'none';
     topVid.play().catch(() => {});
@@ -1670,7 +1670,7 @@ function renderSplitPair() {
   }
 
   if (pair.partner && pair.partner.url) {
-    botVid.src = pair.partner.url;
+    botVid.src = qualifyUrl(pair.partner.url);
     botVid.style.display = 'block';
     botPh.style.display = 'none';
     botVid.play().catch(() => {});
@@ -1786,7 +1786,7 @@ function renderSearchPair() {
   const botPh  = document.getElementById('searchBotPh');
 
   if (pair.mine && pair.mine.url) {
-    topVid.src = pair.mine.url;
+    topVid.src = qualifyUrl(pair.mine.url);
     topVid.style.display = 'block';
     topPh.style.display = 'none';
     topVid.play().catch(() => {});
@@ -1797,7 +1797,7 @@ function renderSearchPair() {
   }
 
   if (pair.partner && pair.partner.url) {
-    botVid.src = pair.partner.url;
+    botVid.src = qualifyUrl(pair.partner.url);
     botVid.style.display = 'block';
     botPh.style.display = 'none';
     botVid.play().catch(() => {});
@@ -1921,7 +1921,7 @@ function playMyVidAt(idx) {
   myVidIdx = idx;
   var v = myVids[idx];
   var vid = document.getElementById('myVidVideo');
-  vid.src = v.url || '';
+  vid.src = v.url ? qualifyUrl(v.url) : '';
   vid.currentTime = 0;
   vid.play().catch(function() {});
   document.getElementById('myVidCounter').textContent = (idx + 1) + ' / ' + myVids.length;
@@ -2874,7 +2874,7 @@ function openFavPlay(idx) {
   const botPh  = document.getElementById('favBotPh');
 
   if (fav.my_video_url) {
-    topVid.src = fav.my_video_url;
+    topVid.src = qualifyUrl(fav.my_video_url);
     topVid.style.display = 'block';
     topPh.style.display = 'none';
     topVid.play().catch(() => {});
@@ -2885,7 +2885,7 @@ function openFavPlay(idx) {
   }
 
   if (fav.partner_video_url) {
-    botVid.src = fav.partner_video_url;
+    botVid.src = qualifyUrl(fav.partner_video_url);
     botVid.style.display = 'block';
     botPh.style.display = 'none';
     botVid.play().catch(() => {});

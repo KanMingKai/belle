@@ -1,6 +1,13 @@
 const CLOUDINARY_CLOUD_NAME = "dndyiurdr";
 const CLOUDINARY_UPLOAD_PRESET = "video_upload";
 
+// 為播放 URL 動態加上畫質優化參數（不影響 Cloudinary 儲存的原始檔）
+function qualifyUrl(url) {
+  if (!url || !url.includes('/video/upload/') || url.includes('q_auto')) return url;
+  return url.replace(/(\/v\d+\/|\/(?:[^/,?#]+\.(?:mp4|mov|webm|avi)))/i,
+    '/q_auto:good,f_auto$1');
+}
+
 // 根據 trim/crop 參數產生 Cloudinary 轉換 URL
 function getTransformedVideoUrl(rawUrl, startTime, endTime, cropData) {
   if (!rawUrl) return rawUrl;
@@ -24,7 +31,9 @@ function getTransformedVideoUrl(rawUrl, startTime, endTime, cropData) {
     // ar_9:8,c_scale omitted — crop frame already outputs 9:8 dimensions
   }
 
-  if (!parts.length) return rawUrl;
+  // 畫質優化：自動壓縮品質 + 自動選最佳格式（WebM/MP4）
+  parts.push('q_auto:good,f_auto');
+
   var url = rawUrl.replace('/video/upload/', '/video/upload/' + parts.join('/') + '/');
   // Force MP4 output so .mov / HEVC files transform correctly
   url = url.replace(/\.[^./]+(\?|$)/, '.mp4$1');
