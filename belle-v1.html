@@ -636,16 +636,6 @@ body {
   background:rgba(0,0,0,0.35);padding:2px 7px;border-radius:8px;
 }
 .split-who-bot { top:auto;bottom:8px; }
-.split-fade-top::after {
-  content:'';position:absolute;bottom:0;left:0;right:0;height:30px;
-  background:linear-gradient(to bottom,transparent,rgba(13,10,8,0.7));
-  pointer-events:none;z-index:5;
-}
-.split-fade-bot::before {
-  content:'';position:absolute;top:0;left:0;right:0;height:30px;
-  background:linear-gradient(to top,transparent,rgba(13,10,8,0.7));
-  pointer-events:none;z-index:5;
-}
 .split-counter {
   position:absolute;bottom:10px;right:10px;font-size:9px;
   color:rgba(212,184,150,0.4);letter-spacing:1px;
@@ -924,7 +914,7 @@ body {
   position:absolute;left:0;right:0;
   top:50%;transform:translateY(-50%);
   height:90px;z-index:15;
-  background:transparent;
+  background:linear-gradient(to bottom,transparent 0%,rgba(13,10,8,0.6) 35%,rgba(13,10,8,0.6) 65%,transparent 100%);
   display:flex;align-items:center;justify-content:center;
 }
 .divider::before,.divider::after {
@@ -1022,13 +1012,13 @@ body {
         <div class="split-half split-fade-top" id="splitTopHalf">
           <video id="splitVidTop" muted playsinline loop></video>
           <div class="split-ph" id="splitTopPh"><span>🎬</span></div>
-          <div class="split-who">我</div>
+          <div class="split-who" id="splitPartnerWho">對方</div>
         </div>
-        <div class="divider"><span class="gm">Good Morning</span></div>
+        <div class="divider"><span class="gm" id="splitGm">Good Morning</span></div>
         <div class="split-half split-fade-bot" id="splitBotHalf">
           <video id="splitVidBot" muted playsinline loop></video>
           <div class="split-ph" id="splitBotPh"><span>🎬</span></div>
-          <div class="split-who split-who-bot" id="splitPartnerWho">對方</div>
+          <div class="split-who split-who-bot">我</div>
         </div>
         <div class="split-counter" id="splitCounter"></div>
         <div class="split-fav-btn" id="splitFavBtn" onclick="addSplitFavorite()">
@@ -1091,13 +1081,13 @@ body {
         <div class="split-half split-fade-top" id="searchTopHalf">
           <video id="searchVidTop" muted playsinline loop></video>
           <div class="split-ph" id="searchTopPh"><span>🎬</span></div>
-          <div class="split-who">我</div>
+          <div class="split-who" id="searchPartnerWho">對方</div>
         </div>
-        <div class="divider"><span class="gm">Good Morning</span></div>
+        <div class="divider"><span class="gm" id="searchGm">Good Morning</span></div>
         <div class="split-half split-fade-bot" id="searchBotHalf">
           <video id="searchVidBot" muted playsinline loop></video>
           <div class="split-ph" id="searchBotPh"><span>🎬</span></div>
-          <div class="split-who split-who-bot" id="searchPartnerWho">對方</div>
+          <div class="split-who split-who-bot">我</div>
         </div>
         <div class="split-counter" id="searchCounter"></div>
         <div class="split-fav-btn" id="searchFavBtn" onclick="addSearchFavorite()">
@@ -1219,13 +1209,13 @@ body {
           <div class="split-half split-fade-top">
             <video id="favVidTop" muted playsinline loop></video>
             <div class="split-ph" id="favTopPh"><span>🎬</span></div>
-            <div class="split-who">我</div>
+            <div class="split-who">對方</div>
           </div>
-          <div class="divider"><span class="gm">Good Morning</span></div>
+          <div class="divider"><span class="gm" id="favGm">Good Morning</span></div>
           <div class="split-half split-fade-bot">
             <video id="favVidBot" muted playsinline loop></video>
             <div class="split-ph" id="favBotPh"><span>🎬</span></div>
-            <div class="split-who split-who-bot">對方</div>
+            <div class="split-who split-who-bot">我</div>
           </div>
         </div>
       </div>
@@ -1680,6 +1670,18 @@ async function initHome() {
   }
 }
 
+const GREETINGS = [
+  'Mid-night','Deep sleep','Before dawn','Sunrise time',
+  'Good morning','Brunch time','Good afternoon','Teatime',
+  'Late afternoon','Good evening','Relaxing time','Good night'
+];
+function slotGreeting(timeSlot) {
+  if (!timeSlot) return 'Good Morning';
+  const hm = (timeSlot.split('_')[1] || '').split('-');
+  const hour = parseInt(hm[0], 10);
+  return isNaN(hour) ? 'Good Morning' : (GREETINGS[Math.floor(hour / 2)] || 'Good Morning');
+}
+
 function renderSplitPair() {
   if (!splitPairs.length) return;
   const pair = splitPairs[splitIdx];
@@ -1689,8 +1691,8 @@ function renderSplitPair() {
   const topPh  = document.getElementById('splitTopPh');
   const botPh  = document.getElementById('splitBotPh');
 
-  if (pair.mine && pair.mine.url) {
-    topVid.src = qualifyUrl(pair.mine.url);
+  if (pair.partner && pair.partner.url) {
+    topVid.src = qualifyUrl(pair.partner.url);
     topVid.style.display = 'block';
     topPh.style.display = 'none';
     topVid.play().catch(() => {});
@@ -1700,8 +1702,8 @@ function renderSplitPair() {
     topPh.style.display = 'flex';
   }
 
-  if (pair.partner && pair.partner.url) {
-    botVid.src = qualifyUrl(pair.partner.url);
+  if (pair.mine && pair.mine.url) {
+    botVid.src = qualifyUrl(pair.mine.url);
     botVid.style.display = 'block';
     botPh.style.display = 'none';
     botVid.play().catch(() => {});
@@ -1713,7 +1715,8 @@ function renderSplitPair() {
 
   document.getElementById('splitCounter').textContent =
     (splitIdx + 1) + ' / ' + splitPairs.length;
-
+  document.getElementById('splitGm').textContent =
+    slotGreeting(pair.mine && pair.mine.time_slot);
 }
 
 function setupSplitSwipe() {
@@ -1817,8 +1820,8 @@ function renderSearchPair() {
   const topPh  = document.getElementById('searchTopPh');
   const botPh  = document.getElementById('searchBotPh');
 
-  if (pair.mine && pair.mine.url) {
-    topVid.src = qualifyUrl(pair.mine.url);
+  if (pair.partner && pair.partner.url) {
+    topVid.src = qualifyUrl(pair.partner.url);
     topVid.style.display = 'block';
     topPh.style.display = 'none';
     topVid.play().catch(() => {});
@@ -1828,8 +1831,8 @@ function renderSearchPair() {
     topPh.style.display = 'flex';
   }
 
-  if (pair.partner && pair.partner.url) {
-    botVid.src = qualifyUrl(pair.partner.url);
+  if (pair.mine && pair.mine.url) {
+    botVid.src = qualifyUrl(pair.mine.url);
     botVid.style.display = 'block';
     botPh.style.display = 'none';
     botVid.play().catch(() => {});
@@ -1841,7 +1844,8 @@ function renderSearchPair() {
 
   document.getElementById('searchCounter').textContent =
     (searchIdx + 1) + ' / ' + searchPairs.length;
-
+  document.getElementById('searchGm').textContent =
+    slotGreeting(pair.mine && pair.mine.time_slot);
 }
 
 function setupSearchSwipe() {
@@ -2997,8 +3001,8 @@ function openFavPlay(idx) {
   const topPh  = document.getElementById('favTopPh');
   const botPh  = document.getElementById('favBotPh');
 
-  if (fav.my_video_url) {
-    topVid.src = qualifyUrl(fav.my_video_url);
+  if (fav.partner_video_url) {
+    topVid.src = qualifyUrl(fav.partner_video_url);
     topVid.style.display = 'block';
     topPh.style.display = 'none';
     topVid.play().catch(() => {});
@@ -3008,8 +3012,8 @@ function openFavPlay(idx) {
     topPh.style.display = 'flex';
   }
 
-  if (fav.partner_video_url) {
-    botVid.src = qualifyUrl(fav.partner_video_url);
+  if (fav.my_video_url) {
+    botVid.src = qualifyUrl(fav.my_video_url);
     botVid.style.display = 'block';
     botPh.style.display = 'none';
     botVid.play().catch(() => {});
@@ -3019,6 +3023,7 @@ function openFavPlay(idx) {
     botPh.style.display = 'flex';
   }
 
+  document.getElementById('favGm').textContent = slotGreeting(fav.time_slot);
   document.getElementById('favPlayOverlay').classList.add('open');
 }
 
