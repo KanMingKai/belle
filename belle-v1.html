@@ -730,8 +730,16 @@ body {
 .cam-timer.danger { color:#ff5555; }
 .cam-controls {
   padding:28px 0 44px;display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;
+  gap:40px;flex-shrink:0;
 }
+.cam-flip-btn {
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,0.12);border:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:opacity 0.2s;
+}
+.cam-flip-btn:disabled { opacity:0.3;cursor:default; }
+.cam-flip-btn svg { width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
 .cam-record-btn {
   width:72px;height:72px;border-radius:50%;
   background:transparent;border:4px solid rgba(255,255,255,0.4);
@@ -1363,9 +1371,13 @@ body {
       <div class="cam-timer" id="camTimer">0.0s</div>
     </div>
     <div class="cam-controls">
+      <div style="width:44px"></div>
       <div class="cam-record-btn" id="camRecordBtn" onclick="toggleCamRecording()">
         <div class="cam-record-inner"></div>
       </div>
+      <button class="cam-flip-btn" id="camFlipBtn" onclick="flipCamera()">
+        <svg viewBox="0 0 24 24"><path d="M20 7h-4l-2-3H10L8 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><circle cx="12" cy="13" r="3"/><path d="M15 4l2 3M9 4L7 7"/></svg>
+      </button>
     </div>
   </div>
 
@@ -2383,19 +2395,36 @@ var camChunks = [];
 var camTimerInterval = null;
 var camElapsed = 0;
 var CAM_MAX_MS = 10000;
+var currentFacingMode = 'environment';
 
 async function openCamera() {
   closeUploadSheet();
+  currentFacingMode = 'environment';
   document.getElementById('cameraOverlay').classList.add('open');
   try {
     camStream = await navigator.mediaDevices.getUserMedia({
-      video: { aspectRatio: { ideal: 9 / 8 }, facingMode: { ideal: 'environment' } },
+      video: { aspectRatio: { ideal: 9 / 8 }, facingMode: { ideal: currentFacingMode } },
       audio: true
     });
     document.getElementById('camPreview').srcObject = camStream;
   } catch (err) {
     showToast('無法開啟相機：' + (err.message || err));
     closeCamera();
+  }
+}
+
+async function flipCamera() {
+  if (camRecorder && camRecorder.state !== 'inactive') return;
+  currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { aspectRatio: { ideal: 9 / 8 }, facingMode: { ideal: currentFacingMode } },
+      audio: true
+    });
+    document.getElementById('camPreview').srcObject = camStream;
+  } catch (err) {
+    showToast('無法切換鏡頭：' + (err.message || err));
   }
 }
 
@@ -2414,6 +2443,7 @@ function closeCamera() {
   var timer = document.getElementById('camTimer');
   timer.classList.remove('show', 'danger');
   document.getElementById('camRecordBtn').classList.remove('recording');
+  document.getElementById('camFlipBtn').disabled = false;
   document.getElementById('cameraOverlay').classList.remove('open');
 }
 
@@ -2459,6 +2489,7 @@ function startCamRecording() {
 
   camRecorder.start(200);
   document.getElementById('camRecordBtn').classList.add('recording');
+  document.getElementById('camFlipBtn').disabled = true;
 
   var timerEl = document.getElementById('camTimer');
   timerEl.textContent = '0.0s / 10s';
