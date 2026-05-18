@@ -1,0 +1,18 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "*.MOV",
+      "*.mov",
+      "*.mp4",
+      "*.MP4",
+      "*.log",
+      "*.md",
+      "actual_block.txt",
+      "firestore-rules.txt"
+    ]
+  }
+}
