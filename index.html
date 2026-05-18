@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Belle · 登入</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Cinzel:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --brown: #A48977;
+  --cream: #EAE7DA;
+  --sand: #D4B896;
+  --dark-brown: #6B5344;
+  --bg: #0d0a08;
+  --border: rgba(164,137,119,0.15);
+  --text-dim: rgba(212,184,150,0.4);
+}
+
+body {
+  background: #0d0a08;
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 24px;
+}
+
+.page-eyebrow {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 6px;
+  color: var(--sand);
+  opacity: 0.45;
+  text-align: center;
+}
+
+/* Phone frame */
+.phone {
+  width: 320px;
+  height: 590px;
+  border-radius: 40px;
+  overflow: hidden;
+  border: 7px solid #221a14;
+  box-shadow: 0 0 0 1px rgba(164,137,119,0.12), 0 30px 70px rgba(0,0,0,0.65);
+  position: relative;
+  background: var(--bg);
+}
+
+.bg-layer {
+  position: absolute; inset: 0;
+  background: linear-gradient(165deg, #2d1f15 0%, #0d0a08 45%, #1a1208 100%);
+}
+.bg-layer::after {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 70% 20%, rgba(164,137,119,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, rgba(107,83,68,0.1) 0%, transparent 60%);
+}
+.grain {
+  position: absolute; inset: 0; opacity: 0.05; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.inner {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 38px 28px 28px;
+  overflow-y: auto;
+}
+.inner::-webkit-scrollbar { display: none; }
+
+/* Brand */
+.brand {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; margin-bottom: 32px; margin-top: 10px;
+}
+.brand-mono {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 1px solid rgba(212,184,150,0.45);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cormorant Garamond', serif; font-size: 27px;
+  font-style: italic; color: var(--cream); position: relative;
+}
+.brand-mono::before {
+  content: ''; position: absolute; inset: 5px; border-radius: 50%;
+  border: 0.5px solid rgba(212,184,150,0.2);
+}
+.brand-name {
+  font-family: 'Cinzel', serif; font-size: 15px;
+  letter-spacing: 8px; color: var(--cream); opacity: 0.9;
+}
+.brand-tagline {
+  font-size: 10px; letter-spacing: 2px; color: var(--text-dim); text-align: center;
+}
+
+/* Tabs */
+.tabs {
+  display: flex; width: 100%;
+  background: rgba(164,137,119,0.06); border-radius: 12px;
+  padding: 3px; border: 1px solid var(--border); margin-bottom: 22px;
+}
+.tab {
+  flex: 1; padding: 9px 0; text-align: center;
+  font-size: 11px; letter-spacing: 2px; color: var(--text-dim);
+  cursor: pointer; border-radius: 9px; transition: all 0.25s;
+  font-family: 'Cinzel', serif;
+}
+.tab.active {
+  background: rgba(164,137,119,0.2); color: var(--sand);
+  border: 1px solid rgba(164,137,119,0.25);
+}
+
+/* Form */
+.form { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: rgba(212,184,150,0.45);
+}
+.field input {
+  background: rgba(164,137,119,0.07); border: 1px solid rgba(164,137,119,0.2);
+  border-radius: 12px; padding: 12px 14px;
+  font-size: 13px; color: var(--cream); font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.2s, background 0.2s; width: 100%;
+}
+.field input:focus {
+  border-color: rgba(164,137,119,0.5); background: rgba(164,137,119,0.12);
+}
+.field input::placeholder { color: rgba(212,184,150,0.25); }
+
+.divider {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 2px 0;
+}
+.div-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(164,137,119,0.2), transparent); }
+.div-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--brown); opacity: 0.3; }
+
+.msg {
+  width: 100%; padding: 10px 14px; border-radius: 10px;
+  font-size: 11px; line-height: 1.5; display: none;
+}
+.msg.error { background: rgba(180,70,70,0.12); border: 1px solid rgba(180,70,70,0.25); color: rgba(255,160,160,0.85); }
+.msg.success { background: rgba(100,160,100,0.1); border: 1px solid rgba(100,160,100,0.2); color: rgba(160,210,160,0.9); }
+.msg.visible { display: block; }
+
+.submit-btn {
+  width: 100%; padding: 13px; border-radius: 24px;
+  background: linear-gradient(135deg, var(--brown) 0%, var(--dark-brown) 100%);
+  color: var(--cream); font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  cursor: pointer; border: none; font-family: 'Cinzel', serif; margin-top: 2px;
+  transition: opacity 0.2s, transform 0.15s;
+  box-shadow: 0 4px 18px rgba(164,137,119,0.3);
+}
+.submit-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.submit-btn:active { transform: scale(0.98); }
+.submit-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+.footer-note {
+  text-align: center; color: rgba(164,137,119,0.3);
+  font-size: 9px; letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+
+<div class="page-eyebrow">BELLE · VIDEO PAIRING</div>
+
+<div class="phone">
+  <div class="bg-layer"></div>
+  <div class="grain"></div>
+  <div class="inner">
+
+    <div class="brand">
+      <div class="brand-mono">B</div>
+      <div class="brand-name">BELLE</div>
+      <div class="brand-tagline">影片配對平台</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" id="tab-login" onclick="switchTab('login')">登入</div>
+      <div class="tab" id="tab-register" onclick="switchTab('register')">註冊</div>
+    </div>
+
+    <form class="form" id="authForm" onsubmit="handleSubmit(event)">
+      <div class="field">
+        <label>信箱</label>
+        <input type="email" id="email" placeholder="輸入信箱地址" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label>密碼</label>
+        <input type="password" id="password" placeholder="輸入密碼（至少 6 位）" required minlength="6" autocomplete="current-password">
+      </div>
+
+      <div class="divider">
+        <div class="div-line"></div><div class="div-dot"></div><div class="div-line"></div>
+      </div>
+
+      <div class="msg error" id="errorMsg"></div>
+      <div class="msg success" id="successMsg"></div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">登入</button>
+    </form>
+
+  </div>
+</div>
+
+<div class="footer-note">© BELLE PLATFORM</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+let mode = 'login';
+
+function switchTab(newMode) {
+  mode = newMode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+  document.getElementById('submitBtn').textContent = mode === 'login' ? '登入' : '註冊';
+  clearMessages();
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.classList.add('visible');
+  document.getElementById('successMsg').classList.remove('visible');
+}
+function showSuccess(msg) {
+  const el = document.getElementById('successMsg');
+  el.textContent = msg; el.classList.add('visible');
+  document.getElementById('errorMsg').classList.remove('visible');
+}
+function clearMessages() {
+  document.getElementById('errorMsg').classList.remove('visible');
+  document.getElementById('successMsg').classList.remove('visible');
+}
+
+async function handleSubmit(e) {
+  e.preventDefault();
+  clearMessages();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '處理中…';
+  try {
+    if (mode === 'login') {
+      await loginUser(email, password);
+      showSuccess('登入成功！正在跳轉…');
+      setTimeout(() => { window.location.href = 'belle-v1.html'; }, 800);
+    } else {
+      await registerUser(email, password);
+      showSuccess('註冊成功！請登入。');
+      setTimeout(() => switchTab('login'), 1500);
+    }
+  } catch (err) {
+    const msgs = {
+      'auth/user-not-found': '找不到此信箱的帳號',
+      'auth/wrong-password': '密碼錯誤',
+      'auth/invalid-credential': '信箱或密碼錯誤',
+      'auth/email-already-in-use': '此信箱已被註冊',
+      'auth/invalid-email': '信箱格式不正確',
+      'auth/weak-password': '密碼強度不足（至少 6 位）',
+      'auth/too-many-requests': '嘗試次數過多，請稍後再試',
+    };
+    showError(msgs[err.code] || err.message || '操作失敗，請重試');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = mode === 'login' ? '登入' : '註冊';
+  }
+}
+
+onAuthStateChanged((user) => {
+  if (user) window.location.href = 'belle-v1.html';
+});
+</script>
+</body>
+</html>

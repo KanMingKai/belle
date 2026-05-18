@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Belle · 上傳影片</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Cinzel:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --brown: #A48977;
+  --cream: #EAE7DA;
+  --sand: #D4B896;
+  --dark-brown: #6B5344;
+  --bg-dark: #0d0a08;
+  --surface: #161210;
+  --border: rgba(164,137,119,0.14);
+  --text-dim: rgba(212,184,150,0.38);
+  --text-mid: rgba(212,184,150,0.65);
+}
+
+body {
+  background: #0e0b09;
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px 60px;
+  gap: 32px;
+}
+
+/* Page label */
+.page-label {
+  text-align: center;
+}
+.page-label .eyebrow {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 6px;
+  color: var(--sand);
+  opacity: 0.5;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.page-label h1 {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: var(--cream);
+  font-size: 22px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+.page-label p {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  margin-top: 8px;
+}
+
+/* ──────────────────────────────
+   PHONE FRAME
+────────────────────────────── */
+.phone {
+  width: 320px;
+  height: 620px;
+  border-radius: 40px;
+  border: 8px solid #2a201a;
+  overflow: hidden;
+  position: relative;
+  background: #0d0a08;
+  box-shadow:
+    0 40px 100px rgba(0,0,0,0.6),
+    0 0 0 1px rgba(164,137,119,0.15),
+    inset 0 0 40px rgba(0,0,0,0.3);
+}
+
+/* ──────────────────────────────
+   FULL-SCREEN VIDEO BG
+────────────────────────────── */
+.video-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(160deg, #2a1f18 0%, #0d0a08 50%, #1a1008 100%);
+  overflow: hidden;
+}
+.video-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 60% 30%, rgba(164,137,119,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 20% 70%, rgba(107,83,68,0.12) 0%, transparent 60%);
+}
+/* Fake video frame lines */
+.video-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(255,255,255,0.012) 3px,
+    rgba(255,255,255,0.012) 4px
+  );
+}
+
+/* ──────────────────────────────
+   HEADER
+────────────────────────────── */
+.header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 18px 12px;
+  background: linear-gradient(to bottom, rgba(13,10,8,0.85) 0%, transparent 100%);
+}
+.burger {
+  width: 32px; height: 32px;
+  display: flex; flex-direction: column;
+  justify-content: center; gap: 5px;
+  cursor: pointer; padding: 4px;
+}
+.burger span {
+  display: block; height: 1.5px; border-radius: 2px;
+  background: var(--cream); opacity: 0.75;
+  transition: opacity 0.2s;
+}
+.burger:hover span { opacity: 1; }
+
+.logo-group {
+  display: flex; align-items: center; gap: 8px;
+}
+.logo-badge {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brown) 0%, var(--dark-brown) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-size: 11px; color: var(--cream);
+  box-shadow: 0 2px 8px rgba(164,137,119,0.3);
+}
+.logo-text {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  letter-spacing: 5px;
+  color: var(--cream);
+  opacity: 0.9;
+}
+.header-right {
+  display: flex; align-items: center; gap: 10px;
+}
+.header-icon {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cream); font-size: 14px; opacity: 0.75; cursor: pointer;
+}
+.header-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--brown), var(--dark-brown));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--cream); font-weight: 500;
+  border: 1.5px solid rgba(164,137,119,0.35);
+}
+
+/* ──────────────────────────────
+   RIGHT SIDEBAR ACTIONS
+────────────────────────────── */
+.actions {
+  position: absolute;
+  right: 14px; bottom: 90px;
+  z-index: 20;
+  display: flex; flex-direction: column; gap: 20px;
+  align-items: center;
+}
+.action {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 5px; cursor: pointer;
+}
+.action-icon {
+  width: 40px; height: 40px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(8px);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  border: 1px solid rgba(164,137,119,0.18);
+  transition: background 0.2s, transform 0.15s;
+}
+.action-icon:hover { background: rgba(164,137,119,0.2); transform: scale(1.08); }
+.action span {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--cream); opacity: 0.6;
+}
+
+/* ──────────────────────────────
+   CENTER PLAY
+────────────────────────────── */
+.play-center {
+  position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.play-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(164,137,119,0.18);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(164,137,119,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cream); font-size: 18px;
+  padding-left: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+/* ──────────────────────────────
+   BOTTOM NAV
+────────────────────────────── */
+.bottom-nav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 14px 8px 18px;
+  background: linear-gradient(to top, rgba(13,10,8,0.98) 60%, transparent 100%);
+  border-top: 1px solid rgba(164,137,119,0.1);
+}
+
+.nav-item {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 5px;
+  flex: 1;
+  cursor: pointer;
+}
+.nav-item .nav-ico {
+  font-size: 17px; opacity: 0.45;
+  transition: opacity 0.2s;
+}
+.nav-item .nav-lbl {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--cream); opacity: 0.4;
+  transition: opacity 0.2s;
+}
+.nav-item.active .nav-ico { opacity: 1; }
+.nav-item.active .nav-lbl { opacity: 0.9; color: var(--sand); }
+.nav-item:hover .nav-ico { opacity: 0.75; }
+
+/* ── UPLOAD BUTTON (center) ── */
+.nav-upload {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+  cursor: pointer;
+}
+.upload-pill {
+  width: 52px; height: 32px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--brown) 0%, var(--dark-brown) 100%);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 4px 16px rgba(164,137,119,0.35),
+    0 0 0 1.5px rgba(212,184,150,0.2);
+  font-size: 17px; color: var(--cream);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+.upload-pill::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+  border-radius: 16px;
+}
+.upload-pill:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 6px 22px rgba(164,137,119,0.5),
+    0 0 0 1.5px rgba(212,184,150,0.35);
+}
+.upload-pill:active {
+  transform: scale(0.96);
+}
+.nav-upload .nav-lbl {
+  font-size: 9px; letter-spacing: 0.5px;
+  color: var(--sand); opacity: 0.7;
+}
+
+/* ──────────────────────────────
+   UPLOAD SHEET (bottom sheet)
+────────────────────────────── */
+.sheet-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0);
+  z-index: 40;
+  pointer-events: none;
+  transition: background 0.3s ease;
+}
+.sheet-backdrop.open {
+  background: rgba(0,0,0,0.55);
+  pointer-events: all;
+  backdrop-filter: blur(2px);
+}
+
+.upload-sheet {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 50;
+  background: #1a1410;
+  border-radius: 22px 22px 0 0;
+  border-top: 1px solid rgba(164,137,119,0.2);
+  padding: 0 0 28px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 -20px 60px rgba(0,0,0,0.5);
+}
+.upload-sheet.open {
+  transform: translateY(0);
+}
+
+/* Handle */
+.sheet-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(164,137,119,0.25);
+  margin: 12px auto 20px;
+}
+
+/* Sheet header */
+.sheet-header {
+  padding: 0 22px 18px;
+  border-bottom: 1px solid rgba(164,137,119,0.1);
+}
+.sheet-title {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--cream);
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+.sheet-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+/* Sheet options */
+.sheet-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 8px;
+}
+
+.sheet-option {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 22px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(164,137,119,0.07);
+  position: relative;
+  overflow: hidden;
+  transition: background 0.15s;
+}
+.sheet-option:last-child { border-bottom: none; }
+.sheet-option:hover { background: rgba(164,137,119,0.05); }
+.sheet-option:active { background: rgba(164,137,119,0.1); }
+
+/* Ripple */
+.sheet-option::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at center, rgba(164,137,119,0.15) 0%, transparent 70%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+.sheet-option:active::after { opacity: 1; }
+
+.option-icon-wrap {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.sheet-option:hover .option-icon-wrap { transform: scale(1.05); }
+
+.option-icon-wrap.camera {
+  background: linear-gradient(135deg, rgba(164,137,119,0.25) 0%, rgba(107,83,68,0.35) 100%);
+  border: 1px solid rgba(164,137,119,0.2);
+}
+.option-icon-wrap.gallery {
+  background: linear-gradient(135deg, rgba(212,184,150,0.18) 0%, rgba(164,137,119,0.25) 100%);
+  border: 1px solid rgba(212,184,150,0.15);
+}
+
+.option-text { flex: 1; }
+.option-title {
+  font-size: 14px;
+  color: var(--cream);
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+.option-desc {
+  font-size: 11px;
+  color: var(--text-mid);
+  letter-spacing: 0.3px;
+}
+.option-arrow {
+  font-size: 13px;
+  color: var(--brown); opacity: 0.5;
+}
+
+/* Decorative line on sheet */
+.sheet-deco {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 22px;
+  margin: 6px 0 4px;
+}
+.sheet-deco-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(164,137,119,0.2), transparent);
+}
+.sheet-deco-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--brown); opacity: 0.3;
+}
+
+/* Close button */
+.sheet-cancel {
+  margin: 10px 22px 0;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(164,137,119,0.15);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-mid);
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.sheet-cancel:hover {
+  background: rgba(164,137,119,0.08);
+  color: var(--cream);
+}
+
+/* ──────────────────────────────
+   CAMERA MODE OVERLAY
+────────────────────────────── */
+.camera-overlay {
+  position: absolute; inset: 0;
+  z-index: 60;
+  background: #000;
+  display: flex; flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.camera-overlay.open { transform: translateY(0); }
+
+.cam-viewfinder {
+  flex: 1;
+  background:
+    linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%);
+  position: relative;
+  overflow: hidden;
+}
+.cam-viewfinder::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,0.025) 60px, rgba(255,255,255,0.025) 61px),
+    repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.025) 60px, rgba(255,255,255,0.025) 61px);
+}
+/* Focus square */
+.cam-focus {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -60%);
+  width: 90px; height: 90px;
+}
+.cam-focus::before, .cam-focus::after {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+}
+.cam-focus::before {
+  top: 0; left: 0;
+  border-top: 1.5px solid var(--sand);
+  border-left: 1.5px solid var(--sand);
+}
+.cam-focus::after {
+  bottom: 0; right: 0;
+  border-bottom: 1.5px solid var(--sand);
+  border-right: 1.5px solid var(--sand);
+}
+.cam-focus-tr, .cam-focus-bl {
+  position: absolute;
+  width: 20px; height: 20px;
+}
+.cam-focus-tr {
+  top: 0; right: 0;
+  border-top: 1.5px solid var(--sand);
+  border-right: 1.5px solid var(--sand);
+}
+.cam-focus-bl {
+  bottom: 0; left: 0;
+  border-bottom: 1.5px solid var(--sand);
+  border-left: 1.5px solid var(--sand);
+}
+
+/* Camera top controls */
+.cam-top {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+}
+.cam-close {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; cursor: pointer;
+  transition: background 0.15s;
+}
+.cam-close:hover { background: rgba(255,255,255,0.18); }
+
+.cam-badge {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.7);
+  font-family: 'Cinzel', serif;
+}
+.cam-flash {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; cursor: pointer;
+}
+
+/* Rec indicator */
+.rec-dot {
+  position: absolute;
+  top: 58px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.45);
+  border-radius: 20px;
+  padding: 4px 12px 4px 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.rec-dot.recording {
+  opacity: 1;
+}
+.rec-circle {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #e05555;
+  animation: recBlink 1s ease-in-out infinite;
+}
+@keyframes recBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.rec-label {
+  font-size: 10px; letter-spacing: 2px;
+  color: rgba(255,255,255,0.8);
+  font-family: 'Cinzel', serif;
+}
+.rec-time {
+  font-size: 10px; color: rgba(255,255,255,0.55);
+  margin-left: 4px;
+}
+
+/* Camera bottom controls */
+.cam-bottom {
+  background: #0a0a0a;
+  padding: 22px 28px 28px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.cam-mode-row {
+  display: flex; justify-content: center; gap: 22px;
+}
+.cam-mode {
+  font-size: 10px; letter-spacing: 2px;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  cursor: pointer; padding: 4px 8px;
+  transition: color 0.15s;
+}
+.cam-mode.active {
+  color: var(--sand);
+  border-bottom: 1px solid var(--sand);
+}
+
+.cam-controls {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cam-thumb {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: rgba(255,255,255,0.4);
+  cursor: pointer;
+}
+.cam-shutter {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.5);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s;
+  position: relative;
+}
+.cam-shutter:active { transform: scale(0.93); }
+.cam-shutter-inner {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--cream);
+  transition: background 0.15s;
+}
+.cam-shutter.recording .cam-shutter-inner {
+  background: #e05555;
+  border-radius: 8px;
+  width: 24px; height: 24px;
+}
+.cam-flip {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cam-flip:hover { background: rgba(255,255,255,0.14); }
+
+/* ──────────────────────────────
+   GALLERY OVERLAY (simulated)
+────────────────────────────── */
+.gallery-overlay {
+  position: absolute; inset: 0;
+  z-index: 60;
+  background: #0d0a08;
+  display: flex; flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.gallery-overlay.open { transform: translateY(0); }
+
+.gal-header {
+  display: flex; align-items: center;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(164,137,119,0.12);
+  gap: 12px;
+}
+.gal-back {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sand); font-size: 18px; cursor: pointer;
+}
+.gal-title {
+  font-family: 'Cinzel', serif;
+  font-size: 12px; letter-spacing: 4px;
+  color: var(--cream); opacity: 0.8; flex: 1;
+}
+.gal-select-btn {
+  font-size: 11px; letter-spacing: 1px;
+  color: var(--brown);
+  padding: 6px 12px;
+  border: 1px solid rgba(164,137,119,0.25);
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.gal-album-row {
+  display: flex; gap: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid rgba(164,137,119,0.08);
+}
+.gal-album-row::-webkit-scrollbar { display: none; }
+.gal-album {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0;
+}
+.gal-album-thumb {
+  width: 44px; height: 44px; border-radius: 10px;
+  border: 1.5px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.gal-album.active .gal-album-thumb {
+  border-color: var(--brown);
+}
+.gal-album-lbl {
+  font-size: 9px; letter-spacing: 0.5px;
+  color: var(--text-dim); text-align: center;
+}
+.gal-album.active .gal-album-lbl { color: var(--sand); }
+
+.gal-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.gal-cell {
+  aspect-ratio: 1;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+.gal-cell-bg {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  transition: opacity 0.15s;
+}
+.gal-cell:hover .gal-cell-bg { opacity: 0.8; }
+.gal-cell-dur {
+  position: absolute; bottom: 5px; right: 7px;
+  font-size: 9px; color: #fff; opacity: 0.8;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.gal-cell-check {
+  position: absolute; top: 6px; right: 6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.6);
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: transparent;
+}
+.gal-cell.selected .gal-cell-check {
+  background: var(--brown);
+  border-color: var(--brown);
+  color: #fff;
+}
+.gal-cell.selected .gal-cell-bg { opacity: 0.75; }
+
+.gal-footer {
+  padding: 14px 18px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid rgba(164,137,119,0.12);
+}
+.gal-count {
+  font-size: 12px; color: var(--text-mid);
+  letter-spacing: 1px;
+}
+.gal-count span { color: var(--sand); font-weight: 500; }
+.gal-confirm {
+  background: linear-gradient(135deg, var(--brown) 0%, var(--dark-brown) 100%);
+  color: var(--cream);
+  padding: 10px 22px;
+  border-radius: 20px;
+  font-size: 12px; letter-spacing: 1.5px;
+  font-family: 'Cinzel', serif;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(164,137,119,0.3);
+  opacity: 0.4;
+  transition: opacity 0.2s, transform 0.15s;
+  pointer-events: none;
+}
+.gal-confirm.ready {
+  opacity: 1;
+  pointer-events: all;
+}
+.gal-confirm.ready:hover { transform: scale(1.03); }
+
+/* ──────────────────────────────
+   TOAST
+────────────────────────────── */
+.toast {
+  position: absolute;
+  top: 70px; left: 50%; transform: translateX(-50%) translateY(-6px);
+  z-index: 80;
+  background: rgba(164,137,119,0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(164,137,119,0.3);
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: 11px; letter-spacing: 1px;
+  color: var(--cream);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+</style>
+</head>
+<body>
+
+<div class="page-label">
+  <div class="eyebrow">Belle · Upload</div>
+  <h1>上傳影片按鈕</h1>
+  <p>點擊底部中心的 ＋ 按鈕互動</p>
+</div>
+
+<!-- PHONE -->
+<div class="phone" id="phone">
+
+  <!-- Video background -->
+  <div class="video-bg"></div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">✓ 已加入上傳佇列</div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="burger">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="logo-group">
+      <div class="logo-badge">B</div>
+      <div class="logo-text">BELLE</div>
+    </div>
+    <div class="header-right">
+      <div class="header-icon">🔍</div>
+      <div class="header-avatar">L</div>
+    </div>
+  </div>
+
+  <!-- Play center -->
+  <div class="play-center">
+    <div class="play-btn">▶</div>
+  </div>
+
+  <!-- Right actions -->
+  <div class="actions">
+    <div class="action">
+      <div class="action-icon">♡</div>
+      <span>4,821</span>
+    </div>
+    <div class="action">
+      <div class="action-icon">💬</div>
+      <span>183</span>
+    </div>
+    <div class="action">
+      <div class="action-icon">☆</div>
+      <span>收藏</span>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <div class="nav-item">
+      <div class="nav-ico">👥</div>
+      <div class="nav-lbl">朋友</div>
+    </div>
+    <div class="nav-item active">
+      <div class="nav-ico">◎</div>
+      <div class="nav-lbl">好友</div>
+    </div>
+    <div class="nav-upload" onclick="openSheet()">
+      <div class="upload-pill">＋</div>
+      <div class="nav-lbl">上傳</div>
+    </div>
+    <div class="nav-item">
+      <div class="nav-ico">☆</div>
+      <div class="nav-lbl">收藏</div>
+    </div>
+    <div class="nav-item">
+      <div class="nav-ico">◉</div>
+      <div class="nav-lbl">我的</div>
+    </div>
+  </div>
+
+  <!-- ── UPLOAD SHEET ── -->
+  <div class="sheet-backdrop" id="sheetBackdrop" onclick="closeSheet()"></div>
+  <div class="upload-sheet" id="uploadSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">上傳影片</div>
+      <div class="sheet-sub">選擇來源 · Select source</div>
+    </div>
+    <div class="sheet-options">
+      <div class="sheet-option" onclick="openCamera()">
+        <div class="option-icon-wrap camera">📷</div>
+        <div class="option-text">
+          <div class="option-title">即時拍攝</div>
+          <div class="option-desc">開啟相機，直接錄製新影片</div>
+        </div>
+        <div class="option-arrow">›</div>
+      </div>
+      <div class="sheet-deco">
+        <div class="sheet-deco-line"></div>
+        <div class="sheet-deco-dot"></div>
+        <div class="sheet-deco-line"></div>
+      </div>
+      <div class="sheet-option" onclick="openGallery()">
+        <div class="option-icon-wrap gallery">🎞</div>
+        <div class="option-text">
+          <div class="option-title">從相簿選取</div>
+          <div class="option-desc">從手機相簿選擇已有影片</div>
+        </div>
+        <div class="option-arrow">›</div>
+      </div>
+    </div>
+    <div class="sheet-cancel" onclick="closeSheet()">取消</div>
+  </div>
+
+  <!-- ── CAMERA OVERLAY ── -->
+  <div class="camera-overlay" id="cameraOverlay">
+    <div class="cam-viewfinder">
+      <!-- Focus square -->
+      <div class="cam-focus">
+        <div class="cam-focus-tr"></div>
+        <div class="cam-focus-bl"></div>
+      </div>
+      <!-- Top controls -->
+      <div class="cam-top">
+        <div class="cam-close" onclick="closeCamera()">✕</div>
+        <div class="cam-badge">BELLE REC</div>
+        <div class="cam-flash">⚡</div>
+      </div>
+      <!-- Rec indicator -->
+      <div class="rec-dot" id="recDot">
+        <div class="rec-circle"></div>
+        <div class="rec-label">REC</div>
+        <div class="rec-time" id="recTime">00:00</div>
+      </div>
+    </div>
+    <div class="cam-bottom">
+      <div class="cam-mode-row">
+        <div class="cam-mode">照片</div>
+        <div class="cam-mode active">影片</div>
+        <div class="cam-mode">慢動作</div>
+      </div>
+      <div class="cam-controls">
+        <div class="cam-thumb">🖼</div>
+        <div class="cam-shutter" id="shutterBtn" onclick="toggleRecord()">
+          <div class="cam-shutter-inner"></div>
+        </div>
+        <div class="cam-flip">🔄</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GALLERY OVERLAY ── -->
+  <div class="gallery-overlay" id="galleryOverlay">
+    <div class="gal-header">
+      <div class="gal-back" onclick="closeGallery()">‹</div>
+      <div class="gal-title">相簿</div>
+      <div class="gal-select-btn">多選</div>
+    </div>
+    <!-- Album strip -->
+    <div class="gal-album-row">
+      <div class="gal-album active">
+        <div class="gal-album-thumb" style="background:linear-gradient(135deg,#2a201a,#1a1410);">🎬</div>
+        <div class="gal-album-lbl">全部</div>
+      </div>
+      <div class="gal-album">
+        <div class="gal-album-thumb" style="background:linear-gradient(135deg,#1a1a2a,#0e0e1a);">🌙</div>
+        <div class="gal-album-lbl">夜間</div>
+      </div>
+      <div class="gal-album">
+        <div class="gal-album-thumb" style="background:linear-gradient(135deg,#2a2010,#1a1408);">☀️</div>
+        <div class="gal-album-lbl">戶外</div>
+      </div>
+      <div class="gal-album">
+        <div class="gal-album-thumb" style="background:linear-gradient(135deg,#1a2a18,#0e1a0c);">🌿</div>
+        <div class="gal-album-lbl">自然</div>
+      </div>
+      <div class="gal-album">
+        <div class="gal-album-thumb" style="background:linear-gradient(135deg,#2a1a1a,#1a0e0e);">❤️</div>
+        <div class="gal-album-lbl">收藏</div>
+      </div>
+    </div>
+    <!-- Grid -->
+    <div class="gal-grid" id="galGrid"></div>
+    <!-- Footer -->
+    <div class="gal-footer">
+      <div class="gal-count">已選 <span id="galCountNum">0</span> 部影片</div>
+      <div class="gal-confirm" id="galConfirm" onclick="confirmGallery()">確認上傳</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Gallery grid data ──
+const cells = [
+  { emoji:'🎬', bg:'#1e1812', dur:'02:34' },
+  { emoji:'🌅', bg:'#1e1610', dur:'01:18' },
+  { emoji:'🌃', bg:'#10101e', dur:'04:52' },
+  { emoji:'🍃', bg:'#101e10', dur:'00:47' },
+  { emoji:'☕', bg:'#1e1a12', dur:'03:21' },
+  { emoji:'🌊', bg:'#101618', dur:'02:09' },
+  { emoji:'🏙', bg:'#14141e', dur:'05:37' },
+  { emoji:'🌸', bg:'#1e1018', dur:'01:55' },
+  { emoji:'🎵', bg:'#1a101e', dur:'03:44' },
+  { emoji:'🌿', bg:'#101a10', dur:'02:18' },
+  { emoji:'✨', bg:'#1e1e10', dur:'01:02' },
+  { emoji:'🌙', bg:'#10101a', dur:'04:11' },
+];
+
+const galGrid = document.getElementById('galGrid');
+const galCountNum = document.getElementById('galCountNum');
+const galConfirm = document.getElementById('galConfirm');
+let selected = new Set();
+
+cells.forEach((c, i) => {
+  const cell = document.createElement('div');
+  cell.className = 'gal-cell';
+  cell.innerHTML = `
+    <div class="gal-cell-bg" style="background:${c.bg}">${c.emoji}</div>
+    <div class="gal-cell-dur">${c.dur}</div>
+    <div class="gal-cell-check">✓</div>
+  `;
+  cell.addEventListener('click', () => {
+    if (selected.has(i)) {
+      selected.delete(i);
+      cell.classList.remove('selected');
+    } else {
+      selected.add(i);
+      cell.classList.add('selected');
+    }
+    galCountNum.textContent = selected.size;
+    galConfirm.classList.toggle('ready', selected.size > 0);
+  });
+  galGrid.appendChild(cell);
+});
+
+// ── Sheet ──
+function openSheet() {
+  document.getElementById('sheetBackdrop').classList.add('open');
+  document.getElementById('uploadSheet').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('sheetBackdrop').classList.remove('open');
+  document.getElementById('uploadSheet').classList.remove('open');
+}
+
+// ── Camera ──
+let recording = false;
+let recInterval = null;
+let recSec = 0;
+
+function openCamera() {
+  closeSheet();
+  setTimeout(() => {
+    document.getElementById('cameraOverlay').classList.add('open');
+  }, 50);
+}
+function closeCamera() {
+  if (recording) stopRecord();
+  document.getElementById('cameraOverlay').classList.remove('open');
+}
+function toggleRecord() {
+  if (!recording) startRecord(); else stopRecord();
+}
+function startRecord() {
+  recording = true;
+  recSec = 0;
+  document.getElementById('shutterBtn').classList.add('recording');
+  document.getElementById('recDot').classList.add('recording');
+  recInterval = setInterval(() => {
+    recSec++;
+    const m = String(Math.floor(recSec/60)).padStart(2,'0');
+    const s = String(recSec%60).padStart(2,'0');
+    document.getElementById('recTime').textContent = m + ':' + s;
+  }, 1000);
+}
+function stopRecord() {
+  recording = false;
+  clearInterval(recInterval);
+  document.getElementById('shutterBtn').classList.remove('recording');
+  document.getElementById('recDot').classList.remove('recording');
+  document.getElementById('recTime').textContent = '00:00';
+  closeCamera();
+  showToast('✓ 影片已儲存，準備上傳');
+}
+
+// ── Gallery ──
+function openGallery() {
+  closeSheet();
+  setTimeout(() => {
+    document.getElementById('galleryOverlay').classList.add('open');
+  }, 50);
+}
+function closeGallery() {
+  document.getElementById('galleryOverlay').classList.remove('open');
+  selected.clear();
+  document.querySelectorAll('.gal-cell.selected').forEach(c => c.classList.remove('selected'));
+  galCountNum.textContent = '0';
+  galConfirm.classList.remove('ready');
+}
+function confirmGallery() {
+  const n = selected.size;
+  closeGallery();
+  showToast(`✓ 已選取 ${n} 部影片，準備上傳`);
+}
+
+// ── Toast ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+
+</body>
+</html>

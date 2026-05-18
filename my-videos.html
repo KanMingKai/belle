@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的影片 - 配对视频平台</title>
+  <link rel="stylesheet" href="css/style-new.css">
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- 顶部导航 -->
+    <header class="header">
+      <div class="header-content">
+        <a href="dashboard.html" class="logo">配对视频</a>
+        <div class="header-right">
+          <span class="user-info" id="userEmail"></span>
+          <button id="logoutBtn" class="btn btn-secondary btn-sm">登出</button>
+        </div>
+      </div>
+    </header>
+
+    <div style="display: flex; flex: 1;">
+      <!-- 侧边栏 -->
+      <nav class="sidebar">
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="dashboard.html" class="nav-link">我的配对</a>
+          </li>
+          <li class="nav-item">
+            <a href="upload.html" class="nav-link">上传视频</a>
+          </li>
+          <li class="nav-item">
+            <a href="my-videos.html" class="nav-link active">我的影片</a>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- 主内容 -->
+      <main class="main-content" style="flex: 1;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">我的影片</h1>
+            <p class="page-desc">管理你上传的所有视频</p>
+          </div>
+          <a href="upload.html" class="btn btn-primary">+ 上传新影片</a>
+        </div>
+
+        <!-- 消息提示 -->
+        <div id="messageBox" class="message"></div>
+
+        <!-- 筛选器 -->
+        <div style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;" id="filterContainer"></div>
+
+        <!-- 统计信息 -->
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+          <div class="stat-card">
+            <div class="stat-value" id="totalVideos">0</div>
+            <div class="stat-label">总视频数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="todayVideos">0</div>
+            <div class="stat-label">今日上传</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="weekVideos">0</div>
+            <div class="stat-label">本周上传</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="pairedVideos">0</div>
+            <div class="stat-label">已配对视频</div>
+          </div>
+        </div>
+
+        <!-- 视频列表 -->
+        <div class="video-grid" id="videoGrid"></div>
+
+        <!-- 空状态 -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <div class="empty-icon">📹</div>
+          <h2 class="empty-title">还没有上传视频</h2>
+          <p class="empty-desc">开始上传你的第一个短视频吧</p>
+          <a href="upload.html" class="btn btn-primary">上传视频</a>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 删除确认模态框 -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>删除视频</h2>
+        <button type="button" class="modal-close" onclick="closeDeleteModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin: 0 0 24px; color: #666;">确定要删除这个视频吗？此操作无法撤销。</p>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- 应用脚本 -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/video.js"></script>
+
+  <script>
+    let currentUser = null;
+    let videos = [];
+    let currentFilter = 'all';
+    let pendingDeleteId = null;
+
+    const messageBox = document.getElementById('messageBox');
+    const videoGrid = document.getElementById('videoGrid');
+    const emptyState = document.getElementById('emptyState');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const deleteModal = document.getElementById('deleteModal');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const filterContainer = document.getElementById('filterContainer');
+    const statsGrid = document.getElementById('statsGrid');
+
+    const filters = [
+      { id: 'all', label: '全部' },
+      { id: 'today', label: '今天' },
+      { id: 'week', label: '本周' },
+      { id: 'month', label: '本月' },
+      { id: 'paired', label: '已配对' }
+    ];
+
+    // 初始化
+    onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUser = user;
+      document.getElementById('userEmail').textContent = user.email;
+      await loadVideos();
+    });
+
+    // 退出登录
+    logoutBtn.addEventListener('click', async () => {
+      await logoutUser();
+      window.location.href = 'index.html';
+    });
+
+    // 删除确认
+    confirmDeleteBtn.addEventListener('click', async () => {
+      if (!pendingDeleteId) return;
+      
+      try {
+        await deleteVideo(pendingDeleteId);
+        messageBox.className = 'message success';
+        messageBox.textContent = '视频已删除';
+        closeDeleteModal();
+        loadVideos();
+      } catch (error) {
+        messageBox.className = 'message error';
+        messageBox.textContent = '删除失败: ' + error.message;
+      }
+    });
+
+    // 加载视频
+    async function loadVideos() {
+      try {
+        messageBox.innerHTML = '';
+        videos = await getUserVideos(currentUser.uid);
+        renderFilters();
+        renderStats();
+        renderVideos();
+      } catch (error) {
+        messageBox.className = 'message error';
+        messageBox.textContent = '加载视频失败: ' + error.message;
+      }
+    }
+
+    // 渲染筛选器
+    function renderFilters() {
+      filterContainer.innerHTML = filters.map(filter => {
+        const activeClass = filter.id === currentFilter ? 'active' : '';
+        const count = getFilterCount(filter.id);
+        return `
+          <button 
+            type="button" 
+            class="btn btn-secondary ${activeClass}"
+            onclick="setFilter('${filter.id}')"
+            style="${filter.id === currentFilter ? 'background-color: #0095ff; color: white; border-color: #0095ff;' : ''}"
+          >
+            ${filter.label} <span style="font-weight: 500; margin-left: 4px;">${count}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // 获取筛选计数
+    function getFilterCount(filter) {
+      switch (filter) {
+        case 'today': return videos.filter(isToday).length;
+        case 'week': return videos.filter(isThisWeek).length;
+        case 'month': return videos.filter(isThisMonth).length;
+        case 'paired': return videos.filter(v => v.partnership_id).length;
+        default: return videos.length;
+      }
+    }
+
+    // 渲染统计
+    function renderStats() {
+      document.getElementById('totalVideos').textContent = videos.length;
+      document.getElementById('todayVideos').textContent = videos.filter(isToday).length;
+      document.getElementById('weekVideos').textContent = videos.filter(isThisWeek).length;
+      document.getElementById('pairedVideos').textContent = videos.filter(v => v.partnership_id).length;
+
+      if (videos.length > 0) {
+        statsGrid.style.display = 'grid';
+      }
+    }
+
+    // 渲染视频
+    function renderVideos() {
+      const filtered = filterVideos(videos, currentFilter);
+
+      if (filtered.length === 0) {
+        videoGrid.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      videoGrid.innerHTML = filtered.map(video => {
+        const uploadDate = formatDate(video.uploaded_at.toDate());
+        const pairedLabel = video.partnership_id ? '✓ 已配对' : '未配对';
+
+        return `
+          <div class="video-item">
+            <div class="video-thumbnail">
+              <video src="${video.cloudinary_url}" muted playsinline></video>
+            </div>
+            <div class="video-info">
+              <div class="video-title">${video.description || '未命名视频'}</div>
+              <div class="video-meta">
+                <span>${uploadDate}</span>
+                <span style="color: ${video.partnership_id ? '#2ed573' : '#999'};">${pairedLabel}</span>
+              </div>
+              <div class="video-actions">
+                <button 
+                  type="button" 
+                  class="btn btn-secondary btn-sm"
+                  onclick="showDeleteModal('${video.id}')"
+                  style="flex: 1;"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 筛选视频
+    function filterVideos(list, filter) {
+      if (filter === 'all') return list;
+      if (filter === 'today') return list.filter(isToday);
+      if (filter === 'week') return list.filter(isThisWeek);
+      if (filter === 'month') return list.filter(isThisMonth);
+      if (filter === 'paired') return list.filter(v => v.partnership_id);
+      return list;
+    }
+
+    // 日期判断函数
+    function isToday(video) {
+      const date = video.uploaded_at.toDate();
+      const now = new Date();
+      return date.toDateString() === now.toDateString();
+    }
+
+    function isThisWeek(video) {
+      const date = video.uploaded_at.toDate();
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      return diff >= 0 && diff < 7 * 24 * 60 * 60 * 1000;
+    }
+
+    function isThisMonth(video) {
+      const date = video.uploaded_at.toDate();
+      const now = new Date();
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    }
+
+    // 格式化日期
+    function formatDate(date) {
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+
+      if (diff < 60 * 1000) return '刚刚';
+      if (diff < 60 * 60 * 1000) return Math.floor(diff / (60 * 1000)) + '分钟前';
+      if (diff < 24 * 60 * 60 * 1000) return Math.floor(diff / (60 * 60 * 1000)) + '小时前';
+      if (diff < 7 * 24 * 60 * 60 * 1000) return Math.floor(diff / (24 * 60 * 60 * 1000)) + '天前';
+
+      return date.toLocaleDateString('zh-CN');
+    }
+
+    // 全局函数
+    window.setFilter = function(filter) {
+      currentFilter = filter;
+      renderFilters();
+      renderVideos();
+    };
+
+    window.showDeleteModal = function(videoId) {
+      pendingDeleteId = videoId;
+      deleteModal.classList.add('open');
+    };
+
+    window.closeDeleteModal = function() {
+      pendingDeleteId = null;
+      deleteModal.classList.remove('open');
+    };
+
+    // 点击背景关闭模态框
+    deleteModal.addEventListener('click', (e) => {
+      if (e.target === deleteModal) {
+        closeDeleteModal();
+      }
+    });
+  </script>
+</body>
+</html>

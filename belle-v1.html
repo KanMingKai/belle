@@ -1,0 +1,2925 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Belle · Video Pairing</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Cinzel:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent; }
+
+:root {
+  --brown:#A48977;--cream:#EAE7DA;--sand:#D4B896;--dark-brown:#6B5344;
+  --bg:#0d0a08;--surface:#161210;--border:rgba(164,137,119,0.12);
+  --text-dim:rgba(212,184,150,0.4);--text-mid:rgba(212,184,150,0.7);
+}
+
+body {
+  background:#0e0b09;font-family:'DM Sans',sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 20px 60px;gap:24px;min-height:100vh;
+}
+
+.page-top { text-align:center; }
+.eyebrow { color:var(--sand);font-size:10px;letter-spacing:6px;text-transform:uppercase;opacity:0.5;margin-bottom:10px; }
+.page-top h1 { font-family:'Playfair Display',serif;font-style:italic;color:var(--cream);font-size:22px;font-weight:400; }
+.rule { width:44px;height:1px;background:linear-gradient(90deg,transparent,var(--brown),transparent);margin:10px auto 0; }
+
+/* ── PHONE FRAME ── */
+.phone {
+  width:320px;height:650px;border-radius:40px;overflow:hidden;
+  border:7px solid #221a14;
+  box-shadow:0 0 0 1px rgba(164,137,119,0.13),0 30px 70px rgba(0,0,0,0.65);
+  position:relative;background:var(--bg);
+}
+
+/* ── SCREEN SYSTEM ── */
+.screen {
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  background:var(--bg);overflow:hidden;
+  transition:transform 0.35s cubic-bezier(0.4,0,0.2,1),opacity 0.3s ease;
+  will-change:transform;
+}
+.screen.hidden { transform:translateX(100%);opacity:0;pointer-events:none; }
+.screen.slide-up { transform:translateY(100%);opacity:0;pointer-events:none; }
+
+/* ── SHARED ATOMS ── */
+.logo-wrap { display:flex;align-items:center;gap:7px; }
+.logo-circle {
+  width:26px;height:26px;border-radius:50%;border:1px solid var(--brown);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel',serif;font-size:11px;color:var(--sand);
+}
+.logo-text { font-family:'Cinzel',serif;font-size:12px;letter-spacing:4px;color:var(--cream); }
+
+.hdr {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 10px;flex-shrink:0;
+}
+.hdr-icons { display:flex;gap:12px;font-size:17px;color:rgba(212,184,150,0.38); }
+.hdr-icon-btn { cursor:pointer;transition:color 0.2s; }
+.hdr-icon-btn:hover { color:var(--sand); }
+
+.back-btn {
+  display:flex;align-items:center;gap:6px;color:rgba(212,184,150,0.5);
+  font-size:13px;cursor:pointer;transition:color 0.2s;letter-spacing:0.3px;
+}
+.back-btn:hover { color:var(--sand); }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  display:flex;padding:8px 0 14px;
+  border-top:1px solid var(--border);
+  background:rgba(13,10,8,0.98);flex-shrink:0;
+}
+.bnav-item {
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:3px;font-size:8px;color:rgba(164,137,119,0.3);letter-spacing:0.5px;
+  cursor:pointer;transition:color 0.2s;
+}
+.bnav-item.active,.bnav-item:hover { color:var(--sand); }
+.bnav-icon { font-size:15px; }
+.bnav-plus { flex:1;display:flex;align-items:center;justify-content:center; }
+.bnav-plus-btn {
+  width:34px;height:34px;border-radius:50%;background:var(--brown);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--cream);margin-top:-6px;
+  box-shadow:0 4px 14px rgba(164,137,119,0.3);cursor:pointer;
+  transition:background 0.2s,transform 0.15s;
+}
+.bnav-plus-btn:hover { background:var(--dark-brown);transform:scale(1.05); }
+.bnav-plus-btn:active { transform:scale(0.95); }
+
+/* ── LOADING ── */
+.loading-screen {
+  position:absolute;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;transition:opacity 0.4s;
+}
+.loading-mono {
+  width:54px;height:54px;border-radius:50%;border:1px solid rgba(212,184,150,0.4);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-size:28px;font-style:italic;color:var(--cream);
+  position:relative;animation:pulse 2s ease-in-out infinite;
+}
+.loading-mono::before { content:'';position:absolute;inset:5px;border-radius:50%;border:0.5px solid rgba(212,184,150,0.2); }
+@keyframes pulse { 0%,100%{opacity:0.6;transform:scale(1);}50%{opacity:1;transform:scale(1.05);} }
+.loading-text { font-family:'Cinzel',serif;font-size:12px;letter-spacing:6px;color:rgba(234,231,218,0.4);margin-top:20px; }
+
+/* ── HOME SCREEN ── */
+.home-vbg {
+  position:absolute;inset:0;overflow:hidden;
+  background:linear-gradient(170deg,#3d2a1e 0%,#1a1410 40%,#2a1e16 100%);
+}
+.home-vbg video {
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.7;
+}
+.home-grain {
+  position:absolute;inset:0;opacity:0.06;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.home-hdr {
+  position:absolute;top:0;left:0;right:0;display:flex;align-items:center;
+  justify-content:space-between;padding:18px 18px 14px;z-index:30;
+  background:linear-gradient(to bottom,rgba(26,20,16,0.85) 0%,rgba(26,20,16,0.4) 60%,transparent 100%);
+}
+.home-burger { display:flex;flex-direction:column;gap:4px;cursor:pointer;padding:8px;margin:-8px; }
+.home-burger span { display:block;width:20px;height:1.5px;background:rgba(234,231,218,0.85);border-radius:2px; }
+.home-hdr-right { display:flex;align-items:center;gap:10px; }
+.home-search-btn {
+  width:30px;height:30px;background:rgba(234,231,218,0.08);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  border:1px solid rgba(234,231,218,0.12);color:var(--cream);cursor:pointer;
+}
+/* ── HEADER SEARCH OVERLAY ── */
+.hdr-search-overlay {
+  position:absolute;inset:0;z-index:40;
+  background:rgba(26,20,16,0.97);
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+  transform:translateY(-100%);transition:transform 0.22s ease;
+  pointer-events:none;
+}
+.hdr-search-overlay.open {
+  transform:translateY(0);pointer-events:auto;
+}
+.hdr-search-input {
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:'Jost',sans-serif;font-size:13px;color:var(--cream);
+  letter-spacing:0.5px;
+}
+.hdr-search-input::placeholder { color:rgba(212,184,150,0.35); }
+.hdr-search-close {
+  font-size:18px;color:rgba(212,184,150,0.55);cursor:pointer;padding:4px;line-height:1;
+}
+.hdr-search-close:active { color:var(--sand); }
+.hdr-search-suggestions {
+  position:absolute;top:100%;left:0;right:0;z-index:39;
+  background:rgba(22,16,12,0.98);border-top:1px solid rgba(164,137,119,0.12);
+  max-height:260px;overflow-y:auto;display:none;
+}
+.hdr-search-suggestions.open { display:block; }
+.hdr-suggest-item {
+  display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;
+  border-bottom:1px solid rgba(164,137,119,0.07);
+}
+.hdr-suggest-item:active { background:rgba(164,137,119,0.1); }
+.hdr-suggest-av {
+  width:36px;height:36px;border-radius:50%;background:rgba(164,137,119,0.2);
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  color:var(--cream);flex-shrink:0;overflow:hidden;
+}
+.hdr-suggest-av img { width:100%;height:100%;object-fit:cover; }
+.hdr-suggest-info { flex:1;min-width:0; }
+.hdr-suggest-name { font-size:13px;color:var(--cream);font-weight:500; }
+.hdr-suggest-handle { font-size:11px;color:var(--text-dim);margin-top:1px; }
+.hdr-suggest-badge {
+  font-size:9px;color:var(--sand);border:1px solid rgba(164,137,119,0.3);
+  border-radius:10px;padding:2px 7px;letter-spacing:0.5px;flex-shrink:0;
+}
+.hdr-suggest-empty {
+  padding:20px 16px;font-size:12px;color:var(--text-dim);text-align:center;
+}
+.home-user-av {
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--brown),var(--sand));
+  border:1.5px solid rgba(212,184,150,0.4);font-size:11px;color:white;
+  font-weight:700;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;overflow:hidden;
+}
+.home-user-av img { width:100%;height:100%;object-fit:cover; }
+.home-main {
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-52%);text-align:center;z-index:5;
+}
+.play-ring {
+  width:72px;height:72px;border-radius:50%;
+  border:1.5px solid rgba(212,184,150,0.4);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 20px;position:relative;cursor:pointer;transition:all 0.3s;
+}
+.play-ring:hover { border-color:var(--sand);transform:scale(1.05); }
+.play-ring::before {
+  content:'';position:absolute;inset:6px;border-radius:50%;
+  background:rgba(164,137,119,0.18);backdrop-filter:blur(6px);
+}
+.play-ring-ico { position:relative;z-index:1;font-size:22px;color:var(--cream);padding-left:3px; }
+.home-vid-title { font-family:'Playfair Display',serif;font-size:17px;color:var(--cream);letter-spacing:1px;margin-bottom:8px; }
+.home-vid-sub { font-size:11px;color:rgba(212,184,150,0.55);letter-spacing:2px; }
+.home-empty {
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:5;text-align:center;padding:40px;
+}
+.home-empty-ico { font-size:40px;margin-bottom:16px;opacity:0.4; }
+.home-empty-txt { font-family:'Playfair Display',serif;font-style:italic;font-size:16px;color:var(--cream);opacity:0.6;margin-bottom:8px; }
+.home-empty-sub { font-size:11px;color:var(--text-dim);letter-spacing:1px; }
+.home-side-actions {
+  position:absolute;right:14px;bottom:145px;
+  display:flex;flex-direction:column;align-items:center;gap:22px;z-index:10;
+}
+.h-action { display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer; }
+.h-action-ico {
+  width:42px;height:42px;background:rgba(164,137,119,0.18);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  backdrop-filter:blur(8px);border:1px solid rgba(164,137,119,0.25);
+  color:rgba(234,231,218,0.9);transition:all 0.2s;
+}
+.h-action:hover .h-action-ico { background:rgba(212,184,150,0.3);transform:scale(1.05); }
+.h-action span { font-size:10px;color:rgba(212,184,150,0.65);letter-spacing:0.5px; }
+.home-bottom {
+  flex-shrink:0;
+  background:rgba(13,10,8,0.98);
+  border-top:1px solid rgba(164,137,119,0.12);
+}
+.home-creator-row { display:flex;align-items:center;gap:10px;padding:0 16px 10px; }
+.home-creator-av {
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg,var(--brown),#6B5344);
+  border:2px solid rgba(212,184,150,0.4);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:white;overflow:hidden;
+}
+.home-creator-av img { width:100%;height:100%;object-fit:cover; }
+.home-creator-name { font-size:13px;color:var(--cream);font-weight:500; }
+.home-creator-handle { font-size:10px;color:rgba(212,184,150,0.5);margin-top:1px; }
+.home-tags { display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 10px; }
+.home-tag { font-size:10px;color:var(--sand);opacity:0.85; }
+.home-bnav {
+  display:flex;align-items:center;justify-content:space-around;
+  padding:14px 0 10px;border-top:1px solid rgba(164,137,119,0.15);
+  background:rgba(26,20,16,0.95);
+}
+.h-nav-item {
+  font-size:10px;color:rgba(212,184,150,0.4);font-weight:500;
+  letter-spacing:1.5px;cursor:pointer;transition:color 0.2s;padding:4px 8px;
+}
+.h-nav-item.active { color:var(--sand); }
+.h-nav-item:hover { color:var(--cream); }
+.h-nav-center {
+  width:48px;height:30px;background:linear-gradient(135deg,var(--brown),var(--dark-brown));
+  border-radius:20px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:white;box-shadow:0 0 18px rgba(164,137,119,0.4);
+  cursor:pointer;font-weight:300;transition:transform 0.15s;
+}
+.h-nav-center:hover { transform:scale(1.05); }
+.h-nav-center:active { transform:scale(0.95); }
+.home-nav-arr {
+  position:absolute;top:50%;transform:translateY(-50%);z-index:15;
+  width:32px;height:60px;display:flex;align-items:center;justify-content:center;
+  color:rgba(234,231,218,0.3);font-size:22px;cursor:pointer;transition:color 0.2s;
+}
+.home-nav-arr:hover { color:var(--cream); }
+
+/* ── SEARCH SCREEN ── */
+.search-bar-wrap {
+  display:flex;align-items:center;gap:10px;padding:10px 16px;
+  flex-shrink:0;border-bottom:1px solid var(--border);
+}
+.search-inp {
+  flex:1;background:rgba(164,137,119,0.08);border:1px solid rgba(164,137,119,0.2);
+  border-radius:20px;padding:8px 14px;font-size:12px;color:var(--cream);
+  font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s;
+}
+.search-inp:focus { border-color:rgba(164,137,119,0.45); }
+.search-inp::placeholder { color:rgba(212,184,150,0.25); }
+.search-list { flex:1;overflow-y:auto;padding:8px 0; }
+.search-list::-webkit-scrollbar { display:none; }
+.search-card {
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;
+}
+.search-card:hover { background:rgba(164,137,119,0.05); }
+.search-av {
+  width:44px;height:44px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--brown),var(--dark-brown));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-style:italic;font-size:18px;color:white;
+  border:1.5px solid rgba(164,137,119,0.3);overflow:hidden;
+}
+.search-av img { width:100%;height:100%;object-fit:cover; }
+.search-uname { font-size:13px;color:var(--cream);font-weight:500; }
+.search-uhandle { font-size:11px;color:var(--text-dim);margin-top:2px; }
+.search-ubio { font-size:11px;color:var(--text-mid);margin-top:2px; }
+.search-empty {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 24px;text-align:center;color:var(--text-dim);font-size:13px;gap:10px;
+}
+.search-empty-ico { font-size:32px;opacity:0.4; }
+
+/* ── MY VIDEOS SCREEN ── */
+.profile-row {
+  display:flex;align-items:center;gap:14px;
+  padding:10px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.prof-av {
+  width:52px;height:52px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,#a07060,#5c3d2e);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel',serif;font-size:20px;color:var(--cream);
+  border:2px solid rgba(164,137,119,0.35);flex-shrink:0;
+  position:relative;overflow:hidden;cursor:pointer;
+}
+.prof-av img { width:100%;height:100%;object-fit:cover;position:absolute;inset:0; }
+.prof-av-overlay {
+  position:absolute;inset:0;background:rgba(0,0,0,0.4);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity 0.2s;font-size:14px;color:var(--cream);
+}
+.prof-av:hover .prof-av-overlay { opacity:1; }
+.prof-name { font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:var(--cream); }
+.prof-handle { font-size:10px;color:var(--text-dim);margin-top:2px; }
+.prof-edit-btn {
+  padding:7px 16px;border-radius:20px;
+  border:1px solid rgba(164,137,119,0.32);
+  color:rgba(212,184,150,0.55);font-size:10px;letter-spacing:0.5px;
+  cursor:pointer;transition:all 0.2s;
+}
+.prof-edit-btn:hover { border-color:rgba(164,137,119,0.6);color:var(--sand); }
+.vids-grid {
+  flex:1;overflow-y:auto;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:2px;padding:2px;
+}
+.vids-grid::-webkit-scrollbar { display:none; }
+.vid-cell {
+  aspect-ratio:9/8;position:relative;overflow:hidden;cursor:pointer;
+  background:linear-gradient(145deg,#2e1e14,#180f0a);
+}
+.vid-cell video { width:100%;height:100%;object-fit:cover; }
+.vid-cell-play {
+  position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:18px;color:rgba(212,184,150,0.25);
+}
+.vid-cell-title {
+  position:absolute;bottom:16px;left:4px;right:4px;font-size:8px;
+  color:rgba(212,184,150,0.7);text-overflow:ellipsis;overflow:hidden;
+  white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,0.8);
+}
+.vid-cell-del {
+  position:absolute;top:5px;right:5px;
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,0.55);display:flex;align-items:center;
+  justify-content:center;font-size:11px;color:rgba(255,255,255,0.7);
+  cursor:pointer;opacity:0;transition:opacity 0.2s;
+}
+.vid-cell:hover .vid-cell-del { opacity:1; }
+.vids-empty {
+  grid-column:1/-1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:60px 20px;text-align:center;
+}
+.vids-empty-ico { font-size:36px;margin-bottom:14px;opacity:0.4; }
+.vids-empty-txt { font-size:13px;color:rgba(164,137,119,0.4); }
+
+/* ── MY VID FULLSCREEN PLAYER ── */
+.myvid-player {
+  position:absolute;inset:0;z-index:80;background:#000;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.myvid-player.open { transform:translateY(0); }
+.myvid-video {
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+}
+.myvid-top {
+  position:relative;z-index:2;display:flex;align-items:center;
+  justify-content:space-between;padding:16px 16px 0;flex-shrink:0;
+}
+.myvid-close {
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;cursor:pointer;
+}
+.myvid-counter {
+  color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:1px;
+  background:rgba(0,0,0,0.4);padding:4px 11px;border-radius:12px;
+}
+.myvid-bottom {
+  position:absolute;bottom:0;left:0;right:0;z-index:2;
+  background:linear-gradient(transparent,rgba(0,0,0,0.75) 60%);
+  padding:60px 20px 44px;
+}
+.myvid-title {
+  color:#fff;font-size:14px;font-weight:600;margin-bottom:5px;
+  text-shadow:0 1px 4px rgba(0,0,0,0.6);
+}
+.myvid-slot {
+  color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.5px;
+}
+.myvid-swipe-hint {
+  position:absolute;bottom:50%;right:12px;z-index:2;transform:translateY(50%);
+  display:flex;flex-direction:column;gap:4px;align-items:center;
+  color:rgba(255,255,255,0.35);font-size:10px;letter-spacing:0.5px;
+}
+
+/* ── EDIT PROFILE ── */
+.edit-body {
+  flex:1;overflow-y:auto;padding:0 20px 20px;
+  display:flex;flex-direction:column;gap:22px;
+}
+.edit-body::-webkit-scrollbar { display:none; }
+.edit-av-wrap { display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:8px; }
+.edit-av {
+  width:72px;height:72px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,#a07060,#5c3d2e);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel',serif;font-size:26px;color:var(--cream);
+  border:2px solid rgba(164,137,119,0.4);position:relative;overflow:hidden;cursor:pointer;
+}
+.edit-av img { width:100%;height:100%;object-fit:cover;position:absolute;inset:0; }
+.edit-av-overlay {
+  position:absolute;inset:0;background:rgba(0,0,0,0.45);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+}
+.edit-av-overlay span { font-size:16px; }
+.edit-av-overlay small { font-size:8px;color:rgba(255,255,255,0.7); }
+.edit-av-hint { font-size:10px;color:var(--text-dim); }
+.field-group { display:flex;flex-direction:column;gap:14px; }
+.field-section-label {
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(164,137,119,0.4);padding-bottom:4px;border-bottom:1px solid var(--border);
+}
+.field { display:flex;flex-direction:column;gap:5px; }
+.field label { font-size:10px;color:var(--text-dim);letter-spacing:1px; }
+.field input,.field textarea {
+  background:rgba(164,137,119,0.06);border:1px solid rgba(164,137,119,0.18);
+  border-radius:10px;padding:9px 12px;font-size:12px;color:var(--cream);
+  font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s;width:100%;
+}
+.field input:focus,.field textarea:focus { border-color:rgba(164,137,119,0.5);background:rgba(164,137,119,0.1); }
+.field input::placeholder,.field textarea::placeholder { color:rgba(212,184,150,0.25); }
+.field textarea { resize:none;height:70px;line-height:1.6; }
+.field-hint { font-size:9px;color:rgba(164,137,119,0.3); }
+.save-btn {
+  width:100%;padding:12px;border-radius:24px;background:var(--brown);
+  color:var(--cream);font-size:12px;letter-spacing:2px;text-transform:uppercase;
+  cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:opacity 0.2s;margin-top:4px;
+}
+.save-btn:hover { opacity:0.85; }
+
+/* ── SETTINGS ── */
+.settings-body { flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:8px 0 16px; }
+.settings-body::-webkit-scrollbar { display:none; }
+.settings-section-label {
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(164,137,119,0.38);padding:12px 20px 6px;
+}
+.settings-row {
+  display:flex;align-items:center;padding:14px 20px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;
+}
+.settings-row:hover { background:rgba(164,137,119,0.04); }
+.settings-row:first-of-type { border-top:1px solid var(--border); }
+.settings-row-ico { font-size:18px;margin-right:14px;opacity:0.6; }
+.settings-row-title { font-size:13px;color:var(--cream); }
+.settings-row-sub { font-size:10px;color:var(--text-dim);margin-top:2px; }
+.settings-row-arrow { font-size:14px;color:rgba(164,137,119,0.25);margin-left:auto; }
+.logout-row {
+  display:flex;align-items:center;justify-content:center;padding:16px 20px;cursor:pointer;
+  color:rgba(180,90,90,0.7);font-size:13px;letter-spacing:1px;gap:8px;
+  transition:color 0.2s;margin-top:4px;
+}
+.logout-row:hover { color:rgba(200,100,100,0.95); }
+
+/* ── ACCOUNT ── */
+.acct-body { flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:20px; }
+.acct-body::-webkit-scrollbar { display:none; }
+.acct-section { display:flex;flex-direction:column;gap:12px; }
+.acct-section-label {
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(164,137,119,0.4);padding-bottom:6px;border-bottom:1px solid var(--border);
+}
+.acct-field { display:flex;flex-direction:column;gap:5px; }
+.acct-field label { font-size:10px;color:var(--text-dim);letter-spacing:1px; }
+.acct-field input {
+  background:rgba(164,137,119,0.06);border:1px solid rgba(164,137,119,0.18);
+  border-radius:10px;padding:9px 12px;font-size:12px;color:var(--cream);
+  font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s;width:100%;
+}
+.acct-field input:focus { border-color:rgba(164,137,119,0.5);background:rgba(164,137,119,0.1); }
+.acct-field input::placeholder { color:rgba(212,184,150,0.25); }
+.acct-note {
+  font-size:10px;color:rgba(164,137,119,0.35);line-height:1.6;
+  padding:10px 12px;background:rgba(164,137,119,0.04);
+  border-radius:10px;border:1px solid var(--border);
+}
+
+/* ── UPLOAD SHEET ── */
+.sheet-backdrop {
+  position:absolute;inset:0;background:rgba(0,0,0,0);z-index:40;
+  pointer-events:none;transition:background 0.3s;
+}
+.sheet-backdrop.open { background:rgba(0,0,0,0.55);pointer-events:all;backdrop-filter:blur(2px); }
+.upload-sheet {
+  position:absolute;bottom:0;left:0;right:0;z-index:50;
+  background:#1a1410;border-radius:22px 22px 0 0;
+  border-top:1px solid rgba(164,137,119,0.2);padding:0 0 28px;
+  transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);
+  box-shadow:0 -20px 60px rgba(0,0,0,0.5);
+}
+.upload-sheet.open { transform:translateY(0); }
+.sheet-handle { width:36px;height:4px;border-radius:2px;background:rgba(164,137,119,0.25);margin:12px auto 20px; }
+.sheet-header { padding:0 22px 18px;border-bottom:1px solid rgba(164,137,119,0.1); }
+.sheet-title { font-family:'Playfair Display',serif;font-style:italic;font-size:18px;color:var(--cream);font-weight:400;margin-bottom:4px; }
+.sheet-sub { font-size:11px;color:var(--text-dim); }
+.sheet-options { display:flex;flex-direction:column;margin-top:8px; }
+.sheet-option {
+  display:flex;align-items:center;gap:16px;padding:18px 22px;cursor:pointer;
+  border-bottom:1px solid rgba(164,137,119,0.07);transition:background 0.15s;
+}
+.sheet-option:last-child { border-bottom:none; }
+.sheet-option:hover { background:rgba(164,137,119,0.05); }
+.opt-ico-wrap {
+  width:48px;height:48px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(212,184,150,0.18),rgba(164,137,119,0.25));
+  border:1px solid rgba(212,184,150,0.15);
+}
+.opt-title { font-size:14px;color:var(--cream);font-weight:500;margin-bottom:3px; }
+.opt-desc { font-size:11px;color:var(--text-mid); }
+.opt-arrow { font-size:13px;color:var(--brown);opacity:0.5;margin-left:auto; }
+.sheet-cancel {
+  margin:10px 22px 0;padding:14px;border-radius:12px;
+  border:1px solid rgba(164,137,119,0.15);text-align:center;
+  font-size:13px;color:var(--text-mid);letter-spacing:1px;cursor:pointer;transition:background 0.15s,color 0.15s;
+}
+.sheet-cancel:hover { background:rgba(164,137,119,0.08);color:var(--cream); }
+
+/* ── GALLERY/FILE OVERLAY ── */
+.gallery-overlay {
+  position:absolute;inset:0;z-index:60;background:var(--bg);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.gallery-overlay.open { transform:translateY(0); }
+.gal-hdr {
+  display:flex;align-items:center;padding:16px 16px 12px;
+  border-bottom:1px solid rgba(164,137,119,0.12);gap:12px;
+}
+.gal-back { width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--sand);font-size:18px;cursor:pointer; }
+.gal-title { font-family:'Cinzel',serif;font-size:12px;letter-spacing:4px;color:var(--cream);opacity:0.8;flex:1; }
+.gal-body {
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;padding:24px;
+}
+.gal-pick-label {
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:12px;
+  color:var(--text-dim);
+}
+.gal-pick-icon {
+  width:64px;height:64px;border-radius:50%;
+  background:rgba(164,137,119,0.1);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+}
+.gal-pick-label span { font-size:13px;letter-spacing:1px; }
+.gal-pick-label small { font-size:10px;opacity:0.6;text-align:center; }
+.gal-footer {
+  padding:14px 18px 20px;display:flex;align-items:center;
+  justify-content:space-between;border-top:1px solid rgba(164,137,119,0.12);
+}
+.gal-count { font-size:12px;color:var(--text-mid); }
+.gal-confirm {
+  background:linear-gradient(135deg,var(--brown),var(--dark-brown));
+  color:var(--cream);padding:10px 22px;border-radius:20px;
+  font-size:12px;letter-spacing:1.5px;cursor:pointer;
+  box-shadow:0 4px 14px rgba(164,137,119,0.3);border:none;
+  transition:opacity 0.2s;opacity:0.4;pointer-events:none;
+}
+.gal-confirm.ready { opacity:1;pointer-events:all; }
+.gal-confirm.ready:hover { opacity:0.85; }
+
+/* ── UPLOAD FORM OVERLAY ── */
+.upload-form-overlay {
+  position:absolute;inset:0;z-index:55;background:var(--bg);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.upload-form-overlay.open { transform:translateY(0); }
+.upload-form-body { flex:1;overflow-y:auto;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px; }
+.upload-form-body::-webkit-scrollbar { display:none; }
+.upload-preview {
+  width:100%;height:120px;border-radius:12px;
+  background:rgba(164,137,119,0.08);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.upload-preview video { width:100%;height:100%;object-fit:cover; }
+.upload-preview-ph {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;color:var(--text-dim);font-size:24px;
+}
+.upload-preview-ph small { font-size:10px;letter-spacing:1px; }
+.upload-progress { display:none;flex-direction:column;gap:6px; }
+.upload-progress.show { display:flex; }
+.progress-bar { height:4px;background:rgba(164,137,119,0.15);border-radius:4px;overflow:hidden; }
+.progress-fill { height:100%;background:linear-gradient(90deg,var(--brown),var(--sand));width:0%;transition:width 0.3s;border-radius:4px; }
+.progress-txt { font-size:11px;color:var(--text-dim);text-align:center; }
+
+/* ── SPLIT SCREEN ── */
+.split-feed {
+  flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;
+  background:#000;
+}
+.split-state {
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:12px;padding:40px;text-align:center;background:var(--bg);
+}
+.split-player {
+  flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;
+}
+.split-half {
+  flex:1;position:relative;overflow:hidden;background:#000;
+}
+.split-half video {
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+.split-ph {
+  position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;background:#111;font-size:32px;opacity:0.35;
+}
+.split-line { height:2px;background:rgba(164,137,119,0.35);flex-shrink:0; }
+.split-who {
+  position:absolute;top:8px;left:10px;font-size:9px;
+  color:rgba(212,184,150,0.55);letter-spacing:2px;text-transform:uppercase;
+  background:rgba(0,0,0,0.35);padding:2px 7px;border-radius:8px;
+}
+.split-counter {
+  position:absolute;bottom:10px;right:10px;font-size:9px;
+  color:rgba(212,184,150,0.4);letter-spacing:1px;
+  background:rgba(0,0,0,0.4);padding:2px 8px;border-radius:8px;pointer-events:none;
+}
+.split-swipe-hint {
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:9px;color:rgba(212,184,150,0.3);letter-spacing:1px;pointer-events:none;
+}
+
+/* ── TRIM TIMELINE ── */
+.trim-wrap { display:flex;flex-direction:column;gap:6px; }
+.trim-label { font-size:10px;color:var(--text-dim);letter-spacing:1px; }
+.trim-timeline {
+  position:relative;height:44px;border-radius:8px;
+  background:rgba(164,137,119,0.1);border:1px solid rgba(164,137,119,0.2);
+  overflow:hidden;cursor:pointer;
+}
+.trim-thumbs-row {
+  display:flex;height:100%;gap:1px;padding:2px;
+}
+.trim-thumb {
+  flex:1;height:100%;background:rgba(164,137,119,0.15);border-radius:3px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:8px;color:rgba(212,184,150,0.3);overflow:hidden;
+}
+.trim-thumb img { width:100%;height:100%;object-fit:cover;border-radius:3px; }
+.trim-selection {
+  position:absolute;top:0;height:100%;
+  background:rgba(212,184,150,0.18);border:2px solid var(--sand);
+  border-radius:6px;pointer-events:none;
+}
+.trim-handle {
+  position:absolute;top:0;width:14px;height:100%;
+  background:var(--sand);border-radius:4px;cursor:ew-resize;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:var(--dark-brown);user-select:none;
+}
+.trim-time-labels { display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim); }
+
+/* ── CROP FRAME ── */
+.crop-wrap { display:flex;flex-direction:column;gap:6px; }
+.crop-label { font-size:10px;color:var(--text-dim);letter-spacing:1px; }
+.crop-container {
+  position:relative;width:100%;background:#000;
+  border-radius:10px;overflow:hidden;border:1px solid rgba(164,137,119,0.2);
+}
+.crop-video {
+  width:100%;display:block;
+}
+.crop-frame {
+  position:absolute;border:2px solid var(--sand);
+  box-shadow:0 0 0 9999px rgba(0,0,0,0.55);
+  cursor:move;border-radius:2px;
+}
+.crop-frame::before,
+.crop-frame::after {
+  content:'';position:absolute;background:var(--sand);
+}
+.crop-hint { font-size:9px;color:var(--text-dim);text-align:center; }
+
+/* ── CAMERA OVERLAY ── */
+.camera-overlay {
+  position:absolute;inset:0;z-index:75;background:#000;
+  display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.camera-overlay.open { transform:translateY(0); }
+.cam-hdr {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 16px 8px;flex-shrink:0;
+}
+.cam-cancel-btn {
+  color:rgba(212,184,150,0.7);font-size:14px;padding:8px 12px;cursor:pointer;
+}
+.cam-title {
+  font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7;
+}
+.cam-preview-wrap {
+  flex:1;position:relative;overflow:hidden;background:#000;
+  display:flex;align-items:center;justify-content:center;
+}
+.cam-preview {
+  width:100%;height:100%;object-fit:cover;
+}
+.cam-timer {
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.55);color:#fff;font-size:13px;font-weight:600;
+  padding:4px 14px;border-radius:20px;display:none;letter-spacing:0.5px;
+}
+.cam-timer.show { display:block; }
+.cam-timer.danger { color:#ff5555; }
+.cam-controls {
+  padding:28px 0 44px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.cam-record-btn {
+  width:72px;height:72px;border-radius:50%;
+  background:transparent;border:4px solid rgba(255,255,255,0.4);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:transform 0.15s;
+}
+.cam-record-btn:active { transform:scale(0.92); }
+.cam-record-inner {
+  width:52px;height:52px;border-radius:50%;background:#e83535;
+  transition:border-radius 0.2s, width 0.2s, height 0.2s;
+}
+.cam-record-btn.recording .cam-record-inner {
+  border-radius:8px;width:28px;height:28px;
+}
+
+/* ── LOGOUT MODAL ── */
+.modal-backdrop {
+  position:absolute;inset:0;background:rgba(0,0,0,0.6);z-index:70;
+  display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity 0.25s;
+}
+.modal-backdrop.open { opacity:1;pointer-events:all; }
+.modal-sheet {
+  width:100%;background:#1e1610;border-radius:24px 24px 0 0;
+  padding:20px 24px 32px;transform:translateY(100%);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  border-top:1px solid rgba(164,137,119,0.15);
+}
+.modal-backdrop.open .modal-sheet { transform:translateY(0); }
+.modal-handle { width:36px;height:3px;border-radius:2px;background:rgba(164,137,119,0.25);margin:0 auto 20px; }
+.modal-title { font-family:'Playfair Display',serif;font-style:italic;font-size:17px;color:var(--cream);margin-bottom:8px;text-align:center; }
+.modal-sub { font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:24px; }
+.modal-btn { width:100%;padding:13px;border-radius:24px;font-size:12px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;margin-bottom:10px;transition:opacity 0.2s; }
+.modal-btn.danger { background:rgba(180,70,70,0.85);color:#ffe8e8; }
+.modal-btn.danger:hover { opacity:0.85; }
+.modal-btn.cancel { background:rgba(164,137,119,0.12);color:var(--text-mid);border:1px solid var(--border); }
+.modal-btn.cancel:hover { background:rgba(164,137,119,0.2); }
+
+/* ── SIDEBAR ── */
+.sidebar-backdrop {
+  position:absolute;inset:0;background:rgba(0,0,0,0);z-index:99;
+  pointer-events:none;transition:background 0.4s;
+}
+.sidebar-backdrop.open { background:rgba(0,0,0,0.5);pointer-events:auto;backdrop-filter:blur(2px); }
+.sidebar {
+  position:absolute;top:0;left:0;width:270px;height:100%;background:#1f1611;z-index:100;
+  transform:translateX(-100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);
+  display:flex;flex-direction:column;box-shadow:4px 0 40px rgba(0,0,0,0.4);
+}
+.sidebar.open { transform:translateX(0); }
+.sidebar-close {
+  position:absolute;top:18px;right:16px;width:30px;height:30px;
+  background:rgba(234,231,218,0.08);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--cream);cursor:pointer;border:1px solid rgba(234,231,218,0.1);
+}
+.sidebar-brand { padding:48px 24px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(234,231,218,0.08); }
+.sidebar-brand-mono {
+  width:36px;height:36px;border:1px solid rgba(212,184,150,0.5);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-size:22px;font-style:italic;color:var(--cream);position:relative;
+}
+.sidebar-brand-mono::before { content:'';position:absolute;inset:4px;border:0.5px solid rgba(212,184,150,0.25);border-radius:50%; }
+.sidebar-brand-text { font-family:'Cinzel',serif;font-size:13px;letter-spacing:6px;color:var(--cream); }
+.sidebar-user { padding:22px 24px 20px;border-bottom:1px solid rgba(234,231,218,0.08); }
+.sidebar-avatar {
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,var(--brown),var(--sand));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:24px;color:white;font-weight:500;margin-bottom:12px;
+  border:2px solid rgba(212,184,150,0.3);overflow:hidden;
+}
+.sidebar-avatar img { width:100%;height:100%;object-fit:cover; }
+.sidebar-name { font-family:'Playfair Display',serif;font-style:italic;font-size:18px;color:var(--cream);font-weight:400; }
+.sidebar-handle { font-size:11px;color:rgba(234,231,218,0.45);letter-spacing:1px;margin-top:3px; }
+.sidebar-menu { flex:1;padding:12px 0; }
+.sidebar-item {
+  display:flex;align-items:center;gap:14px;padding:14px 24px;font-size:13px;
+  color:rgba(234,231,218,0.75);letter-spacing:0.8px;transition:all 0.2s;cursor:pointer;
+  border-left:2px solid transparent;
+}
+.sidebar-item:hover { background:rgba(234,231,218,0.05);color:var(--cream); }
+.sidebar-item.active { background:rgba(234,231,218,0.06);color:var(--cream);border-left-color:var(--sand); }
+.sidebar-ico { font-size:14px;opacity:0.85;width:18px;text-align:center; }
+.sidebar-divider { height:1px;background:rgba(234,231,218,0.08);margin:8px 24px; }
+.sidebar-logout {
+  padding:18px 24px 24px;border-top:1px solid rgba(234,231,218,0.08);
+  display:flex;align-items:center;gap:14px;font-size:12px;
+  color:rgba(234,231,218,0.45);cursor:pointer;letter-spacing:1px;transition:color 0.2s;
+}
+.sidebar-logout:hover { color:#e8a89a; }
+
+/* ── GLOBAL TOAST ── */
+.g-toast {
+  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  background:rgba(164,137,119,0.92);color:var(--cream);
+  padding:8px 20px;border-radius:20px;font-size:11px;
+  letter-spacing:1px;white-space:nowrap;opacity:0;
+  transition:opacity 0.3s;pointer-events:none;z-index:999;
+}
+.g-toast.show { opacity:1; }
+.sub-toast {
+  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  background:rgba(164,137,119,0.9);color:var(--cream);
+  padding:8px 20px;border-radius:20px;font-size:11px;
+  letter-spacing:1px;white-space:nowrap;opacity:0;
+  transition:opacity 0.3s;pointer-events:none;z-index:150;
+}
+.sub-toast.show { opacity:1; }
+
+/* ── SPLIT FAVORITES BUTTON ── */
+.split-fav-btn {
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  z-index:20;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
+}
+.split-fav-ico {
+  width:40px;height:40px;border-radius:50%;
+  background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:rgba(255,255,255,0.85);
+  backdrop-filter:blur(8px);transition:all 0.2s;
+}
+.split-fav-btn:active .split-fav-ico { background:rgba(164,137,119,0.45); }
+.split-fav-btn.saved .split-fav-ico { color:#f0a0b8;border-color:rgba(240,160,184,0.4); }
+.split-fav-lbl { font-size:9px;color:rgba(255,255,255,0.55);letter-spacing:0.5px; }
+
+/* ── FAVORITES SCREEN ── */
+.fav-list { flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:10px; }
+.fav-list::-webkit-scrollbar { display:none; }
+.fav-card {
+  border-radius:14px;overflow:hidden;border:1px solid var(--border);
+  background:var(--surface);position:relative;transition:opacity 0.15s;
+}
+.fav-card:active { opacity:0.8; }
+.fav-card-thumbs { display:flex;flex-direction:column;height:160px;cursor:pointer; }
+.fav-thumb { flex:1;overflow:hidden;position:relative;background:#000; }
+.fav-thumb img { width:100%;height:100%;object-fit:cover;display:block; }
+.fav-thumb-ph { width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;font-size:24px;opacity:0.25; }
+.fav-divider { height:2px;background:rgba(164,137,119,0.35);flex-shrink:0; }
+.fav-card-info { padding:8px 12px;display:flex;align-items:center;justify-content:space-between; }
+.fav-slot { font-size:10px;color:var(--text-dim);letter-spacing:0.5px; }
+.fav-del {
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(164,137,119,0.08);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:rgba(212,184,150,0.45);cursor:pointer;transition:all 0.2s;
+}
+.fav-del:hover { background:rgba(180,70,70,0.18);color:rgba(255,140,140,0.8);border-color:rgba(180,70,70,0.25); }
+.fav-empty {
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:60px 30px;gap:12px;
+}
+.fav-empty-ico { font-size:40px;opacity:0.35; }
+.fav-empty-txt { font-family:'Playfair Display',serif;font-style:italic;font-size:16px;color:var(--cream);opacity:0.5; }
+.fav-empty-sub { font-size:11px;color:var(--text-dim); }
+
+/* ── FAV PLAY OVERLAY ── */
+.fav-play-overlay {
+  position:absolute;inset:0;z-index:80;background:#000;
+  display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.fav-play-overlay.open { transform:translateY(0); }
+.fav-play-hdr {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 10px;flex-shrink:0;
+  background:rgba(13,10,8,0.9);border-bottom:1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<div class="page-top">
+  <div class="eyebrow">Belle · Platform</div>
+  <h1>Video Pairing</h1>
+  <div class="rule"></div>
+</div>
+
+<div class="phone">
+
+  <!-- LOADING -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-mono">B</div>
+    <div class="loading-text">BELLE</div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar-backdrop" id="sideBackdrop" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-close" onclick="closeSidebar()">✕</div>
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mono">B</div>
+      <div class="sidebar-brand-text">BELLE</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="sideAv">B</div>
+      <div class="sidebar-name" id="sideName">Belle</div>
+      <div class="sidebar-handle" id="sideHandle">@user</div>
+    </div>
+    <div class="sidebar-menu">
+      <div class="sidebar-item active" id="side-home" onclick="closeSidebar();goScreen('home')">
+        <span class="sidebar-ico">▶</span> 首頁
+      </div>
+      <div class="sidebar-item" id="side-favorites" onclick="closeSidebar();goScreen('favorites')">
+        <span class="sidebar-ico">☆</span> 收藏
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item" onclick="closeSidebar();goSubScreen('settings')">
+        <span class="sidebar-ico">⊙</span> 設定
+      </div>
+    </div>
+    <div class="sidebar-logout" onclick="closeSidebar();openLogoutModal()">
+      <span class="sidebar-ico">→</span> 登出帳號
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: HOME ══ -->
+  <div class="screen" id="screen-home">
+    <!-- Header -->
+    <div class="home-hdr" id="homeHdr">
+      <div class="home-burger" onclick="openSidebar()">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="logo-wrap">
+        <div class="logo-circle" style="width:28px;height:28px;">B</div>
+        <div class="logo-text">BELLE</div>
+      </div>
+      <div class="home-hdr-right">
+        <div class="home-search-btn" onclick="openHdrSearch('home')">🔍</div>
+        <div class="home-user-av" id="homeUserAv" onclick="goScreen('my-videos')">B</div>
+      </div>
+      <!-- Search overlay (slides down over header) -->
+      <div class="hdr-search-overlay" id="homeSearchOverlay">
+        <span style="font-size:13px;color:rgba(212,184,150,0.5)">🔍</span>
+        <input class="hdr-search-input" id="homeHdrInput" placeholder="輸入對方帳號 ID…"
+          oninput="onHdrInput('home')" onkeydown="onHdrKey(event,'home')">
+        <span class="hdr-search-close" onclick="closeHdrSearch('home')">✕</span>
+      </div>
+      <div class="hdr-search-suggestions" id="homeSuggestions"></div>
+    </div>
+
+    <!-- Split Feed -->
+    <div class="split-feed" id="splitFeed">
+
+      <div class="split-state" id="splitNoPartner" style="display:none">
+        <div class="home-empty-ico">🤝</div>
+        <div class="home-empty-txt">尚未配對</div>
+        <div class="home-empty-sub">輸入對方帳號 ID 完成配對後<br>即可在此看到合拍影片</div>
+      </div>
+
+      <div class="split-state" id="splitNoVids" style="display:none">
+        <div class="home-empty-ico">🎬</div>
+        <div class="home-empty-txt">還沒有影片</div>
+        <div class="home-empty-sub">點擊下方 ＋ 上傳後<br>即可在此看到 Split Screen</div>
+      </div>
+
+      <div class="split-player" id="splitPlayer" style="display:none">
+        <div class="split-half" id="splitTopHalf">
+          <video id="splitVidTop" muted playsinline loop></video>
+          <div class="split-ph" id="splitTopPh"><span>🎬</span></div>
+          <div class="split-who">我</div>
+        </div>
+        <div class="split-line"></div>
+        <div class="split-half" id="splitBotHalf">
+          <video id="splitVidBot" muted playsinline loop></video>
+          <div class="split-ph" id="splitBotPh"><span>🎬</span></div>
+          <div class="split-who" id="splitPartnerWho">對方</div>
+        </div>
+        <div class="split-counter" id="splitCounter"></div>
+        <div class="split-fav-btn" id="splitFavBtn" onclick="addSplitFavorite()">
+          <div class="split-fav-ico">☆</div>
+          <span class="split-fav-lbl">收藏</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="home-bottom">
+      <div class="home-bnav">
+        <div class="h-nav-item active">朋友</div>
+        <div class="h-nav-item" onclick="goScreen('search')">好友</div>
+        <div class="h-nav-center" onclick="openUploadSheet()">＋</div>
+        <div class="h-nav-item" onclick="goScreen('favorites')">收藏</div>
+        <div class="h-nav-item" onclick="goScreen('my-videos')">我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: SEARCH ══ -->
+  <div class="screen hidden" id="screen-search">
+    <div class="home-hdr" id="searchHdr">
+      <div class="home-burger" onclick="openSidebar()">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="logo-wrap">
+        <div class="logo-circle" style="width:28px;height:28px;">B</div>
+        <div class="logo-text">BELLE</div>
+      </div>
+      <div class="home-hdr-right">
+        <div class="home-search-btn" onclick="openHdrSearch('search')">🔍</div>
+        <div class="home-user-av" id="searchUserAv" onclick="goScreen('my-videos')">B</div>
+      </div>
+      <!-- Search overlay -->
+      <div class="hdr-search-overlay" id="searchSearchOverlay">
+        <span style="font-size:13px;color:rgba(212,184,150,0.5)">🔍</span>
+        <input class="hdr-search-input" id="searchHdrInput" placeholder="輸入對方帳號 ID…"
+          oninput="onHdrInput('search')" onkeydown="onHdrKey(event,'search')">
+        <span class="hdr-search-close" onclick="closeHdrSearch('search')">✕</span>
+      </div>
+      <div class="hdr-search-suggestions" id="searchSuggestions"></div>
+    </div>
+    </div>
+
+    <div class="split-feed" id="searchSplitFeed">
+      <div class="split-state" id="searchNoPartner" style="display:none">
+        <div class="home-empty-ico">🤝</div>
+        <div class="home-empty-txt">尚未配對</div>
+        <div class="home-empty-sub">輸入對方帳號 ID 完成配對後<br>即可在此看到合拍影片</div>
+      </div>
+
+      <div class="split-state" id="searchNoVids" style="display:none">
+        <div class="home-empty-ico">🎬</div>
+        <div class="home-empty-txt">還沒有影片</div>
+        <div class="home-empty-sub">點擊下方 ＋ 上傳後<br>即可在此看到 Split Screen</div>
+      </div>
+
+      <div class="split-player" id="searchSplitPlayer" style="display:none">
+        <div class="split-half" id="searchTopHalf">
+          <video id="searchVidTop" muted playsinline loop></video>
+          <div class="split-ph" id="searchTopPh"><span>🎬</span></div>
+          <div class="split-who">我</div>
+        </div>
+        <div class="split-line"></div>
+        <div class="split-half" id="searchBotHalf">
+          <video id="searchVidBot" muted playsinline loop></video>
+          <div class="split-ph" id="searchBotPh"><span>🎬</span></div>
+          <div class="split-who" id="searchPartnerWho">對方</div>
+        </div>
+        <div class="split-counter" id="searchCounter"></div>
+        <div class="split-fav-btn" id="searchFavBtn" onclick="addSearchFavorite()">
+          <div class="split-fav-ico">☆</div>
+          <span class="split-fav-lbl">收藏</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-bottom">
+      <div class="home-bnav">
+        <div class="h-nav-item" onclick="goScreen('home')">朋友</div>
+        <div class="h-nav-item active">好友</div>
+        <div class="h-nav-center" onclick="openUploadSheet()">＋</div>
+        <div class="h-nav-item" onclick="goScreen('favorites')">收藏</div>
+        <div class="h-nav-item" onclick="goScreen('my-videos')">我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Slot Picker Sheet ── -->
+  <div class="sheet-backdrop" id="slotPickerBackdrop"></div>
+  <div class="upload-sheet" id="slotPickerSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">選擇代表影片</div>
+      <div class="sheet-sub">此時間區段已有影片，選一支顯示在 Split Screen</div>
+    </div>
+    <div id="slotPickerList" style="padding:0 16px;display:flex;flex-direction:column;gap:10px;margin:14px 0;max-height:280px;overflow-y:auto"></div>
+    <div class="sheet-cancel" onclick="closeSlotPicker()">稍後決定</div>
+  </div>
+
+  <!-- ── Partner Profile Sheet ── -->
+  <div class="sheet-backdrop" id="partnerBackdrop" onclick="closePartnerSheet()"></div>
+  <div class="upload-sheet" id="partnerSheet">
+    <div class="sheet-handle"></div>
+    <div style="padding:0 22px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div class="search-av" id="psAv" style="width:60px;height:60px;font-size:24px;"></div>
+      <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:17px;color:var(--cream)" id="psName">—</div>
+      <div style="font-size:11px;color:var(--text-dim)" id="psHandle"></div>
+      <div style="font-size:11px;color:var(--text-mid);text-align:center;max-width:220px" id="psBio"></div>
+    </div>
+    <div style="padding:0 22px;">
+      <div id="psStatusMsg" style="font-size:11px;color:var(--text-dim);text-align:center;margin-bottom:12px;display:none"></div>
+      <button class="save-btn" id="psPairBtn" onclick="confirmPair()">配對</button>
+      <button class="save-btn" id="psUnpairBtn" onclick="confirmUnpair()" style="display:none;background:linear-gradient(135deg,#7a1e1e,#4d1010);margin-top:0;">解除配對</button>
+    </div>
+    <div class="sheet-cancel" onclick="closePartnerSheet()">取消</div>
+  </div>
+
+  <!-- ══ SCREEN: MY VIDEOS ══ -->
+  <div class="screen hidden" id="screen-my-videos">
+    <div class="hdr">
+      <div class="logo-wrap">
+        <div class="logo-circle">B</div>
+        <div class="logo-text">BELLE</div>
+      </div>
+      <div class="hdr-icons">
+        <span class="hdr-icon-btn" onclick="goSubScreen('settings')">⚙</span>
+      </div>
+    </div>
+    <div class="profile-row">
+      <div class="prof-av" id="myvAv" onclick="goSubScreen('edit-profile')">
+        <span id="myvAvLetter">B</span>
+        <div class="prof-av-overlay">✎</div>
+      </div>
+      <div>
+        <div class="prof-name" id="myvName">Belle</div>
+        <div class="prof-handle" id="myvHandle">@user</div>
+      </div>
+      <div class="prof-edit-btn" onclick="goSubScreen('edit-profile')">編輯</div>
+    </div>
+    <div class="vids-grid" id="vidsGrid">
+      <div class="vids-empty" style="grid-column:1/-1">
+        <div class="vids-empty-ico">🎬</div>
+        <div class="vids-empty-txt">還沒有影片</div>
+      </div>
+    </div>
+    <div class="bnav">
+      <div class="bnav-item" onclick="goScreen('home')"><div class="bnav-icon">⊞</div>朋友</div>
+      <div class="bnav-item" onclick="goScreen('search')"><div class="bnav-icon">◎</div>好友</div>
+      <div class="bnav-plus"><div class="bnav-plus-btn" onclick="openUploadSheet()">＋</div></div>
+      <div class="bnav-item" onclick="goScreen('favorites')"><div class="bnav-icon">☆</div>收藏</div>
+      <div class="bnav-item active"><div class="bnav-icon">◉</div>我的</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: FAVORITES ══ -->
+  <div class="screen hidden" id="screen-favorites">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack()"><span>←</span> 返回</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">收藏</div>
+      <div style="width:48px"></div>
+    </div>
+    <div class="fav-list" id="favList">
+      <div class="fav-empty">
+        <div class="fav-empty-ico">☆</div>
+        <div class="fav-empty-txt">尚無收藏</div>
+        <div class="fav-empty-sub">在 Split Screen 點擊收藏按鈕</div>
+      </div>
+    </div>
+    <div class="bnav">
+      <div class="bnav-item" onclick="goScreen('home')"><div class="bnav-icon">⊞</div>朋友</div>
+      <div class="bnav-item" onclick="goScreen('search')"><div class="bnav-icon">◎</div>好友</div>
+      <div class="bnav-plus"><div class="bnav-plus-btn" onclick="openUploadSheet()">＋</div></div>
+      <div class="bnav-item active"><div class="bnav-icon">★</div>收藏</div>
+      <div class="bnav-item" onclick="goScreen('my-videos')"><div class="bnav-icon">◉</div>我的</div>
+    </div>
+
+    <!-- Fav play overlay -->
+    <div class="fav-play-overlay" id="favPlayOverlay">
+      <div class="fav-play-hdr">
+        <div class="back-btn" onclick="closeFavPlay()"><span>←</span> 返回</div>
+        <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">收藏回放</div>
+        <div style="width:48px"></div>
+      </div>
+      <div class="split-feed" style="flex:1">
+        <div class="split-player" style="display:flex">
+          <div class="split-half">
+            <video id="favVidTop" muted playsinline loop></video>
+            <div class="split-ph" id="favTopPh"><span>🎬</span></div>
+            <div class="split-who">我</div>
+          </div>
+          <div class="split-line"></div>
+          <div class="split-half">
+            <video id="favVidBot" muted playsinline loop></video>
+            <div class="split-ph" id="favBotPh"><span>🎬</span></div>
+            <div class="split-who">對方</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: EDIT PROFILE ══ -->
+  <div class="screen hidden slide-up" id="screen-edit-profile">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack()"><span>←</span> 返回</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">編輯資料</div>
+      <div style="width:48px"></div>
+    </div>
+    <div class="edit-body">
+      <div class="edit-av-wrap">
+        <div class="edit-av" onclick="document.getElementById('avatarInp').click()" id="editAvDiv">
+          <span id="editAvLetter">B</span>
+          <img id="editAvImg" src="" style="display:none">
+          <div class="edit-av-overlay"><span>📷</span><small>更換頭像</small></div>
+        </div>
+        <div class="edit-av-hint">點擊更換頭像</div>
+        <input type="file" id="avatarInp" accept="image/*" style="display:none" onchange="previewAvatar(this)">
+      </div>
+      <div class="field-group">
+        <div class="field-section-label">基本資料</div>
+        <div class="field">
+          <label>顯示名稱</label>
+          <input type="text" id="editName" placeholder="你的名稱" maxlength="50">
+        </div>
+        <div class="field">
+          <label>帳號 ID</label>
+          <input type="text" id="editHandle" placeholder="帳號名稱" maxlength="30">
+          <div class="field-hint">其他人可用帳號 ID 搜尋到你</div>
+        </div>
+        <div class="field">
+          <label>個人簡介</label>
+          <textarea id="editBio" placeholder="介紹一下自己…" maxlength="200"></textarea>
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveProfile()">儲存變更</button>
+    </div>
+    <div class="sub-toast" id="editToast"></div>
+  </div>
+
+  <!-- ══ SCREEN: SETTINGS ══ -->
+  <div class="screen hidden slide-up" id="screen-settings">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack()"><span>←</span> 返回</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">設定</div>
+      <div style="width:48px"></div>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section-label">帳號</div>
+      <div class="settings-row" onclick="goSubScreen('account')">
+        <div class="settings-row-ico">🔐</div>
+        <div>
+          <div class="settings-row-title">帳號設定</div>
+          <div class="settings-row-sub">變更密碼</div>
+        </div>
+        <div class="settings-row-arrow">›</div>
+      </div>
+      <div class="settings-section-label" style="margin-top:8px">個人資料</div>
+      <div class="settings-row" onclick="goSubScreen('edit-profile')">
+        <div class="settings-row-ico">✎</div>
+        <div>
+          <div class="settings-row-title">編輯個人資料</div>
+          <div class="settings-row-sub">名稱、頭像、簡介</div>
+        </div>
+        <div class="settings-row-arrow">›</div>
+      </div>
+      <div class="logout-row" onclick="openLogoutModal()"><span>→</span> 登出帳號</div>
+    </div>
+    <div class="bnav">
+      <div class="bnav-item" onclick="goScreen('home')"><div class="bnav-icon">⊞</div>朋友</div>
+      <div class="bnav-plus"><div class="bnav-plus-btn" onclick="openUploadSheet()">＋</div></div>
+      <div class="bnav-item" onclick="goScreen('favorites')"><div class="bnav-icon">☆</div>收藏</div>
+      <div class="bnav-item active"><div class="bnav-icon">◉</div>我的</div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: ACCOUNT ══ -->
+  <div class="screen hidden slide-up" id="screen-account">
+    <div class="hdr">
+      <div class="back-btn" onclick="goBack()"><span>←</span> 返回</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">帳號設定</div>
+      <div style="width:48px"></div>
+    </div>
+    <div class="acct-body">
+      <div class="acct-section">
+        <div class="acct-section-label">信箱</div>
+        <div class="acct-field">
+          <label>目前信箱</label>
+          <input type="email" id="curEmail" readonly style="opacity:0.5;cursor:default">
+        </div>
+      </div>
+      <div class="acct-section">
+        <div class="acct-section-label">密碼</div>
+        <div class="acct-field">
+          <label>新密碼</label>
+          <input type="password" id="newPw" placeholder="至少 8 個字元">
+        </div>
+        <div class="acct-field">
+          <label>確認新密碼</label>
+          <input type="password" id="confirmPw" placeholder="再次輸入新密碼">
+        </div>
+        <div class="acct-note">密碼變更後需重新登入。</div>
+      </div>
+      <button class="save-btn" onclick="saveAccount()">儲存變更</button>
+    </div>
+    <div class="sub-toast" id="acctToast"></div>
+  </div>
+
+  <!-- ══ UPLOAD SHEET ══ -->
+  <div class="sheet-backdrop" id="sheetBackdrop" onclick="closeUploadSheet()"></div>
+  <div class="upload-sheet" id="uploadSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">上傳影片</div>
+      <div class="sheet-sub">選擇影片來源</div>
+    </div>
+    <div class="sheet-options">
+      <div class="sheet-option" onclick="openGallery()">
+        <div class="opt-ico-wrap">🎞</div>
+        <div>
+          <div class="opt-title">從裝置選取</div>
+          <div class="opt-desc">選擇已有的影片檔案</div>
+        </div>
+        <div class="opt-arrow">›</div>
+      </div>
+      <div class="sheet-option" onclick="openCamera()">
+        <div class="opt-ico-wrap">⬤</div>
+        <div>
+          <div class="opt-title">即時拍攝</div>
+          <div class="opt-desc">最長 10 秒，拍完進入裁切</div>
+        </div>
+        <div class="opt-arrow">›</div>
+      </div>
+    </div>
+    <div class="sheet-cancel" onclick="closeUploadSheet()">取消</div>
+  </div>
+
+  <!-- ── Gallery / file picker ── -->
+  <div class="gallery-overlay" id="galleryOverlay">
+    <div class="gal-hdr">
+      <div class="gal-back" onclick="closeGallery()">‹</div>
+      <div class="gal-title">選取影片</div>
+    </div>
+    <div class="gal-body">
+      <label class="gal-pick-label">
+        <div class="gal-pick-icon">🎬</div>
+        <span>點擊選取影片</span>
+        <small>支援 mp4 / mov / avi（最大 500MB）</small>
+        <input type="file" id="vidFileInp" accept="video/*" style="display:none" onchange="onVideoSelected(this)">
+      </label>
+    </div>
+    <div class="gal-footer">
+      <div class="gal-count" id="galCountLbl">尚未選取</div>
+      <button class="gal-confirm" id="galConfirmBtn" onclick="openUploadForm()">下一步</button>
+    </div>
+  </div>
+
+  <!-- ── Camera Recording Overlay ── -->
+  <div class="camera-overlay" id="cameraOverlay">
+    <div class="cam-hdr">
+      <div class="cam-cancel-btn" onclick="closeCamera()">取消</div>
+      <div class="cam-title">拍攝影片</div>
+      <div style="width:64px"></div>
+    </div>
+    <div class="cam-preview-wrap">
+      <video id="camPreview" class="cam-preview" autoplay muted playsinline></video>
+      <div class="cam-timer" id="camTimer">0.0s</div>
+    </div>
+    <div class="cam-controls">
+      <div class="cam-record-btn" id="camRecordBtn" onclick="toggleCamRecording()">
+        <div class="cam-record-inner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Upload form ── -->
+  <div class="upload-form-overlay" id="uploadFormOverlay">
+    <div class="hdr">
+      <div class="back-btn" onclick="closeUploadForm()"><span>←</span> 返回</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">上傳影片</div>
+      <div style="width:48px"></div>
+    </div>
+    <div class="upload-form-body">
+      <!-- Step 2: 時間軸選取 10 秒 -->
+      <div class="trim-wrap" id="trimWrap" style="display:none">
+        <div class="trim-label">選取 10 秒區間</div>
+        <div class="trim-timeline" id="trimTimeline">
+          <div class="trim-thumbs-row" id="trimThumbs"></div>
+          <div class="trim-selection" id="trimSel"></div>
+          <div class="trim-handle" id="trimHandleL" style="left:0">⋮</div>
+          <div class="trim-handle" id="trimHandleR" style="right:0">⋮</div>
+        </div>
+        <div class="trim-time-labels">
+          <span id="trimStartLbl">0s</span>
+          <span id="trimEndLbl">10s</span>
+          <span id="trimTotalLbl">/ 0s</span>
+        </div>
+      </div>
+
+      <!-- Step 3: 裁切框 9:8 -->
+      <div class="crop-wrap" id="cropWrap" style="display:none">
+        <div class="crop-label">調整畫面裁切範圍（9:8）</div>
+        <div class="crop-container" id="cropContainer">
+          <video id="cropVideo" class="crop-video" muted playsinline></video>
+          <div class="crop-frame" id="cropFrame"></div>
+        </div>
+        <div class="crop-hint">拖曳框框調整位置</div>
+      </div>
+
+      <!-- Step 4: 資訊 -->
+      <div class="field-group">
+        <div class="field">
+          <label>標題（自動產生）</label>
+          <div id="uploadTitleDisplay" style="background:rgba(164,137,119,0.06);border:1px solid rgba(164,137,119,0.18);border-radius:10px;padding:9px 12px;font-size:12px;color:rgba(212,184,150,0.6);font-family:'DM Sans',sans-serif;word-break:break-all;"></div>
+        </div>
+        <div class="field">
+          <label>描述（選填，最多 300 字）</label>
+          <textarea id="uploadDesc" placeholder="輸入描述或 #標籤" maxlength="300" style="height:60px"></textarea>
+        </div>
+      </div>
+      <div class="upload-progress" id="uploadProgress">
+        <div class="progress-bar"><div class="progress-fill" id="uploadFill"></div></div>
+        <div class="progress-txt" id="uploadPct">上傳中…</div>
+      </div>
+      <button class="save-btn" id="uploadSubmitBtn" onclick="submitUpload()">上傳影片</button>
+    </div>
+  </div>
+
+  <!-- ══ MY VIDEOS FULLSCREEN PLAYER ══ -->
+  <div class="myvid-player" id="myVidPlayer">
+    <video id="myVidVideo" class="myvid-video" playsinline loop></video>
+    <div class="myvid-top">
+      <div class="myvid-close" onclick="closeMyVidPlayer()">✕</div>
+      <div class="myvid-counter" id="myVidCounter">1 / 1</div>
+      <div style="width:36px"></div>
+    </div>
+    <div class="myvid-swipe-hint" id="myVidHint">
+      <span>↑</span>
+      <span>滑動</span>
+      <span>↓</span>
+    </div>
+    <div class="myvid-bottom">
+      <div class="myvid-title" id="myVidTitle"></div>
+      <div class="myvid-slot" id="myVidSlot"></div>
+    </div>
+  </div>
+
+  <!-- ══ LOGOUT MODAL ══ -->
+  <div class="modal-backdrop" id="logoutModal" onclick="onLogoutBackdrop(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">確定要登出嗎？</div>
+      <div class="modal-sub">登出後需重新輸入帳號密碼</div>
+      <button class="modal-btn danger" onclick="confirmLogout()">登出</button>
+      <button class="modal-btn cancel" onclick="closeLogoutModal()">取消</button>
+    </div>
+  </div>
+
+  <!-- GLOBAL TOAST -->
+  <div class="g-toast" id="gToast"></div>
+
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/video.js?v=3"></script>
+<script src="js/cloudinary.js?v=5"></script>
+<script src="js/partnership.js?v=5"></script>
+<script src="js/profile.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/search.js"></script>
+
+<script>
+// ── Global state ──
+let CU = null;
+let feedVids = [];
+let feedIdx = 0;
+let myVids = [];
+let scrStack = [];
+let curScr = 'home';
+let uploadFile = null;
+let activeTab = 'friend';
+let currentPartnershipId = null;
+let favData = [];
+let trimStart = 0;
+let trimEnd = 10;
+let cropX = 0;
+let cropY = 0;
+let cropW = 0;
+let cropH = 0;
+
+// ── Init ──
+onAuthStateChanged(async (user) => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  try {
+    let profile = await getUserProfile(user.uid);
+    if (!profile) {
+      const defHandle = 'user_' + user.uid.slice(0, 6);
+      const defName = user.email.split('@')[0];
+      await updateUserProfile(user.uid, {
+        email: user.email, displayName: defName,
+        handle: defHandle, avatar: '', bio: '', createdAt: new Date()
+      });
+      profile = { email: user.email, displayName: defName, handle: defHandle, avatar: '', bio: '' };
+    }
+    CU = { uid: user.uid, email: user.email, ...profile };
+    syncUI();
+    await initHome();
+  } catch (e) {
+    console.error('Init error:', e);
+  } finally {
+    const ls = document.getElementById('loadingScreen');
+    ls.style.opacity = '0';
+    setTimeout(() => ls.style.display = 'none', 400);
+  }
+});
+
+function syncUI() {
+  if (!CU) return;
+  const letter = (CU.displayName || 'B').charAt(0).toUpperCase();
+  const avHtml = CU.avatar ? `<img src="${CU.avatar}">` : letter;
+  // Sidebar
+  document.getElementById('sideAv').innerHTML = avHtml;
+  document.getElementById('sideName').textContent = CU.displayName || 'Belle';
+  document.getElementById('sideHandle').textContent = '@' + (CU.handle || 'user');
+  // Home avatar
+  document.getElementById('homeUserAv').innerHTML = avHtml;
+  const sav = document.getElementById('searchUserAv');
+  if (sav) sav.innerHTML = avHtml;
+  // My videos profile
+  document.getElementById('myvName').textContent = CU.displayName || 'Belle';
+  document.getElementById('myvHandle').textContent = '@' + (CU.handle || 'user');
+  const myvAv = document.getElementById('myvAv');
+  if (CU.avatar) {
+    document.getElementById('myvAvLetter').style.display = 'none';
+    myvAv.querySelector('img') && myvAv.querySelector('img').remove();
+    const img = document.createElement('img'); img.src = CU.avatar;
+    myvAv.insertBefore(img, myvAv.firstChild);
+  } else {
+    document.getElementById('myvAvLetter').textContent = letter;
+  }
+  // Account
+  const ce = document.getElementById('curEmail');
+  if (ce) ce.value = CU.email || '';
+}
+
+// ── Navigation ──
+async function goScreen(name) {
+  if (name === curScr) return;
+  const from = document.getElementById('screen-' + curScr);
+  const to = document.getElementById('screen-' + name);
+  if (!to) return;
+  scrStack.push(curScr);
+  if (from) from.classList.add('hidden');
+  to.classList.remove('hidden'); to.classList.remove('slide-up');
+  curScr = name;
+  if (name === 'home') await initHome();
+  if (name === 'search') await initSearchScreen();
+  if (name === 'my-videos') await initMyVideos();
+  if (name === 'favorites') await initFavorites();
+}
+
+function goSubScreen(name) {
+  const from = document.getElementById('screen-' + curScr);
+  const to = document.getElementById('screen-' + name);
+  if (!to) return;
+  scrStack.push(curScr);
+  if (from) from.classList.add('hidden');
+  to.classList.remove('hidden'); to.classList.remove('slide-up');
+  curScr = name;
+  if (name === 'edit-profile') fillEditProfile();
+  if (name === 'account') fillAccount();
+}
+
+function goBack() {
+  if (!scrStack.length) { goScreen('home'); return; }
+  const prev = scrStack.pop();
+  const from = document.getElementById('screen-' + curScr);
+  const to = document.getElementById('screen-' + prev);
+  if (from) from.classList.add('hidden');
+  if (to) { to.classList.remove('hidden'); to.classList.remove('slide-up'); }
+  curScr = prev;
+}
+
+// ── Home / Split Screen ──
+let splitPairs = [];
+let splitIdx = 0;
+let splitSwipeStartY = null;
+let splitSwipeSetup = false;
+
+async function loadSplitFeed(type) {
+  const ps = await getPartnershipByType(CU.uid, type);
+  if (!ps) return { pairs: [], partnerUid: null, partnershipId: null };
+  const partnerUid = ps.user_a_uid === CU.uid ? ps.user_b_uid : ps.user_a_uid;
+  const pairs = await getSlotVideosForFeed(CU.uid, partnerUid);
+  return { pairs, partnerUid, partnershipId: ps.id };
+}
+
+async function initHome() {
+  activeTab = 'friend';
+  ['splitNoPartner', 'splitNoVids', 'splitPlayer'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+
+  try {
+    const { pairs, partnerUid, partnershipId } = await loadSplitFeed('friend');
+    currentPartnershipId = partnershipId || null;
+
+    if (!partnerUid) {
+      document.getElementById('splitNoPartner').style.display = 'flex';
+      return;
+    }
+
+    // 顯示對方帳號名稱
+    try {
+      const pd = await db.collection('users').doc(partnerUid).get();
+      const pData = pd.exists ? pd.data() : {};
+      const pName = pData.displayName || pData.handle || '對方';
+      document.getElementById('splitPartnerWho').textContent = pName.slice(0, 12);
+    } catch (_) {
+      document.getElementById('splitPartnerWho').textContent = '對方';
+    }
+
+    splitPairs = pairs;
+    splitIdx = 0;
+
+    if (!pairs.length) {
+      document.getElementById('splitNoVids').style.display = 'flex';
+      return;
+    }
+
+    document.getElementById('splitPlayer').style.display = 'flex';
+    renderSplitPair();
+    if (!splitSwipeSetup) { setupSplitSwipe(); splitSwipeSetup = true; }
+
+  } catch (e) {
+    console.error('initHome error:', e);
+    document.getElementById('splitNoVids').style.display = 'flex';
+  }
+}
+
+function renderSplitPair() {
+  if (!splitPairs.length) return;
+  const pair = splitPairs[splitIdx];
+
+  const topVid = document.getElementById('splitVidTop');
+  const botVid = document.getElementById('splitVidBot');
+  const topPh  = document.getElementById('splitTopPh');
+  const botPh  = document.getElementById('splitBotPh');
+
+  if (pair.mine && pair.mine.url) {
+    topVid.src = pair.mine.url;
+    topVid.style.display = 'block';
+    topPh.style.display = 'none';
+    topVid.play().catch(() => {});
+  } else {
+    topVid.pause(); topVid.src = '';
+    topVid.style.display = 'none';
+    topPh.style.display = 'flex';
+  }
+
+  if (pair.partner && pair.partner.url) {
+    botVid.src = pair.partner.url;
+    botVid.style.display = 'block';
+    botPh.style.display = 'none';
+    botVid.play().catch(() => {});
+  } else {
+    botVid.pause(); botVid.src = '';
+    botVid.style.display = 'none';
+    botPh.style.display = 'flex';
+  }
+
+  document.getElementById('splitCounter').textContent =
+    (splitIdx + 1) + ' / ' + splitPairs.length;
+}
+
+function setupSplitSwipe() {
+  const feed = document.getElementById('splitFeed');
+  feed.addEventListener('touchstart', e => {
+    splitSwipeStartY = e.touches[0].clientY;
+  }, { passive: true });
+  feed.addEventListener('touchend', e => {
+    if (splitSwipeStartY === null) return;
+    const dy = e.changedTouches[0].clientY - splitSwipeStartY;
+    splitSwipeStartY = null;
+    if (Math.abs(dy) < 40) return;
+    if (dy < 0 && splitIdx < splitPairs.length - 1) {
+      splitIdx++; renderSplitPair();
+    } else if (dy > 0 && splitIdx > 0) {
+      splitIdx--; renderSplitPair();
+    }
+  }, { passive: true });
+}
+
+async function addSplitFavorite() {
+  if (!splitPairs.length) return;
+  const pair = splitPairs[splitIdx];
+  const btn = document.getElementById('splitFavBtn');
+  try {
+    await saveFavorite({
+      userUid: CU.uid,
+      myVideoId: pair.mine ? pair.mine.id : null,
+      myVideoUrl: pair.mine ? pair.mine.url : null,
+      myVideoThumb: pair.mine ? (pair.mine.thumbnail_url || getThumbnailUrl(pair.mine.url)) : null,
+      partnerVideoId: pair.partner ? pair.partner.id : null,
+      partnerVideoUrl: pair.partner ? pair.partner.url : null,
+      partnerVideoThumb: pair.partner ? (pair.partner.thumbnail_url || getThumbnailUrl(pair.partner.url)) : null,
+      partnershipId: currentPartnershipId,
+      timeSlot: pair.slot
+    });
+    if (btn) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 2000); }
+    toast('✓ 已加入收藏');
+  } catch(e) {
+    toast('✗ 收藏失敗：' + e.message);
+  }
+}
+
+// ── Search Screen / Split Screen (獨立) ──
+let searchPairs = [];
+let searchIdx = 0;
+let searchSwipeStartY = null;
+let searchSwipeSetup = false;
+let searchPartnershipId = null;
+
+async function initSearchScreen() {
+  activeTab = 'close_friend';
+  ['searchNoPartner', 'searchNoVids', 'searchSplitPlayer'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+
+  try {
+    const ps = await getPartnershipByType(CU.uid, 'close_friend');
+    if (!ps) {
+      searchPartnershipId = null;
+      document.getElementById('searchNoPartner').style.display = 'flex';
+      return;
+    }
+    const partnerUid = ps.user_a_uid === CU.uid ? ps.user_b_uid : ps.user_a_uid;
+    searchPartnershipId = ps.id;
+    const pairs = await getSlotVideosForFeed(CU.uid, partnerUid);
+
+    try {
+      const pd = await db.collection('users').doc(partnerUid).get();
+      const pData = pd.exists ? pd.data() : {};
+      document.getElementById('searchPartnerWho').textContent =
+        (pData.displayName || pData.handle || '對方').slice(0, 12);
+    } catch (_) {
+      document.getElementById('searchPartnerWho').textContent = '對方';
+    }
+
+    searchPairs = pairs;
+    searchIdx = 0;
+
+    if (!pairs.length) {
+      document.getElementById('searchNoVids').style.display = 'flex';
+      return;
+    }
+
+    document.getElementById('searchSplitPlayer').style.display = 'flex';
+    renderSearchPair();
+    if (!searchSwipeSetup) { setupSearchSwipe(); searchSwipeSetup = true; }
+
+  } catch (e) {
+    console.error('initSearchScreen error:', e);
+    document.getElementById('searchNoVids').style.display = 'flex';
+  }
+}
+
+function renderSearchPair() {
+  if (!searchPairs.length) return;
+  const pair = searchPairs[searchIdx];
+
+  const topVid = document.getElementById('searchVidTop');
+  const botVid = document.getElementById('searchVidBot');
+  const topPh  = document.getElementById('searchTopPh');
+  const botPh  = document.getElementById('searchBotPh');
+
+  if (pair.mine && pair.mine.url) {
+    topVid.src = pair.mine.url;
+    topVid.style.display = 'block';
+    topPh.style.display = 'none';
+    topVid.play().catch(() => {});
+  } else {
+    topVid.pause(); topVid.src = '';
+    topVid.style.display = 'none';
+    topPh.style.display = 'flex';
+  }
+
+  if (pair.partner && pair.partner.url) {
+    botVid.src = pair.partner.url;
+    botVid.style.display = 'block';
+    botPh.style.display = 'none';
+    botVid.play().catch(() => {});
+  } else {
+    botVid.pause(); botVid.src = '';
+    botVid.style.display = 'none';
+    botPh.style.display = 'flex';
+  }
+
+  document.getElementById('searchCounter').textContent =
+    (searchIdx + 1) + ' / ' + searchPairs.length;
+}
+
+function setupSearchSwipe() {
+  const feed = document.getElementById('searchSplitFeed');
+  feed.addEventListener('touchstart', e => {
+    searchSwipeStartY = e.touches[0].clientY;
+  }, { passive: true });
+  feed.addEventListener('touchend', e => {
+    if (searchSwipeStartY === null) return;
+    const dy = e.changedTouches[0].clientY - searchSwipeStartY;
+    searchSwipeStartY = null;
+    if (Math.abs(dy) < 40) return;
+    if (dy < 0 && searchIdx < searchPairs.length - 1) {
+      searchIdx++; renderSearchPair();
+    } else if (dy > 0 && searchIdx > 0) {
+      searchIdx--; renderSearchPair();
+    }
+  }, { passive: true });
+}
+
+async function addSearchFavorite() {
+  if (!searchPairs.length) return;
+  const pair = searchPairs[searchIdx];
+  const btn = document.getElementById('searchFavBtn');
+  try {
+    await saveFavorite({
+      userUid: CU.uid,
+      myVideoId: pair.mine ? pair.mine.id : null,
+      myVideoUrl: pair.mine ? pair.mine.url : null,
+      myVideoThumb: pair.mine ? (pair.mine.thumbnail_url || getThumbnailUrl(pair.mine.url)) : null,
+      partnerVideoId: pair.partner ? pair.partner.id : null,
+      partnerVideoUrl: pair.partner ? pair.partner.url : null,
+      partnerVideoThumb: pair.partner ? (pair.partner.thumbnail_url || getThumbnailUrl(pair.partner.url)) : null,
+      partnershipId: searchPartnershipId,
+      timeSlot: pair.slot
+    });
+    if (btn) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 2000); }
+    toast('✓ 已加入收藏');
+  } catch(e) {
+    toast('✗ 收藏失敗：' + e.message);
+  }
+}
+
+// ── My Videos ──
+async function initMyVideos() {
+  syncUI();
+  try {
+    myVids = await getUserVideos(CU.uid);
+  } catch (e) { myVids = []; }
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('vidsGrid');
+  if (!myVids.length) {
+    grid.innerHTML = `<div class="vids-empty" style="grid-column:1/-1"><div class="vids-empty-ico">🎬</div><div class="vids-empty-txt">還沒有影片</div></div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  myVids.forEach((v, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'vid-cell';
+    const thumb = v.thumbnail_url || '';
+    const imgOrVideo = thumb
+      ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;">`
+      : `<video src="${v.url}" preload="none" muted style="width:100%;height:100%;object-fit:cover;"></video>`;
+    cell.innerHTML = `
+      ${imgOrVideo}
+      <div class="vid-cell-play">▶</div>
+      <div class="vid-cell-title">${v.title || '無標題'}</div>
+      <div class="vid-cell-del" onclick="delVid(event,'${v.id}')">✕</div>`;
+    cell.addEventListener('click', function() { openMyVidPlayer(i); });
+    grid.appendChild(cell);
+  });
+}
+
+async function delVid(e, id) {
+  e.stopPropagation();
+  if (!confirm('確定刪除此影片？')) return;
+  try {
+    await deleteVideo(id);
+    myVids = myVids.filter(v => v.id !== id);
+    feedVids = feedVids.filter(v => v.id !== id);
+    renderGrid();
+    toast('✓ 影片已刪除');
+  } catch (e) { toast('✗ 刪除失敗：' + e.message); }
+}
+
+// ── My Videos Fullscreen Player ──
+var myVidIdx = 0;
+var myVidSwipeStartY = null;
+
+function openMyVidPlayer(startIdx) {
+  myVidIdx = startIdx;
+  document.getElementById('myVidPlayer').classList.add('open');
+  playMyVidAt(myVidIdx);
+  setupMyVidSwipe();
+}
+
+function closeMyVidPlayer() {
+  document.getElementById('myVidPlayer').classList.remove('open');
+  var vid = document.getElementById('myVidVideo');
+  vid.pause();
+  vid.src = '';
+  myVidSwipeStartY = null;
+}
+
+function playMyVidAt(idx) {
+  if (idx < 0 || idx >= myVids.length) return;
+  myVidIdx = idx;
+  var v = myVids[idx];
+  var vid = document.getElementById('myVidVideo');
+  vid.src = v.url || '';
+  vid.currentTime = 0;
+  vid.play().catch(function() {});
+  document.getElementById('myVidCounter').textContent = (idx + 1) + ' / ' + myVids.length;
+  document.getElementById('myVidTitle').textContent = v.title || '無標題';
+  var slotStr = '';
+  if (v.time_slot) {
+    var parts = v.time_slot.split('_');
+    slotStr = parts[0] + ' ' + (parts[1] || '').replace('-', ':') + ':00';
+  }
+  document.getElementById('myVidSlot').textContent = slotStr;
+  // hide swipe hint after first navigation
+  var hint = document.getElementById('myVidHint');
+  if (hint) hint.style.display = 'none';
+}
+
+function setupMyVidSwipe() {
+  var el = document.getElementById('myVidPlayer');
+  el.ontouchstart = function(e) {
+    myVidSwipeStartY = e.touches[0].clientY;
+  };
+  el.ontouchend = function(e) {
+    if (myVidSwipeStartY === null) return;
+    var dy = myVidSwipeStartY - e.changedTouches[0].clientY;
+    myVidSwipeStartY = null;
+    if (Math.abs(dy) < 40) return;
+    if (dy > 0 && myVidIdx < myVids.length - 1) playMyVidAt(myVidIdx + 1);
+    else if (dy < 0 && myVidIdx > 0) playMyVidAt(myVidIdx - 1);
+  };
+}
+
+// ── Edit Profile ──
+function fillEditProfile() {
+  document.getElementById('editName').value = CU.displayName || '';
+  document.getElementById('editHandle').value = CU.handle || '';
+  document.getElementById('editBio').value = CU.bio || '';
+  const letter = (CU.displayName || 'B').charAt(0).toUpperCase();
+  if (CU.avatar) {
+    document.getElementById('editAvLetter').style.display = 'none';
+    document.getElementById('editAvImg').src = CU.avatar;
+    document.getElementById('editAvImg').style.display = 'block';
+  } else {
+    document.getElementById('editAvLetter').textContent = letter;
+    document.getElementById('editAvImg').style.display = 'none';
+  }
+}
+
+function previewAvatar(inp) {
+  if (!inp.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('editAvLetter').style.display = 'none';
+    document.getElementById('editAvImg').src = e.target.result;
+    document.getElementById('editAvImg').style.display = 'block';
+  };
+  r.readAsDataURL(inp.files[0]);
+}
+
+async function saveProfile() {
+  const name = document.getElementById('editName').value.trim();
+  const handle = document.getElementById('editHandle').value.trim().replace(/^@/, '').toLowerCase();
+  const bio = document.getElementById('editBio').value.trim();
+  const avFile = document.getElementById('avatarInp').files[0];
+  if (!name) { subToast('editToast', '✗ 名稱不能為空'); return; }
+  try {
+    let avURL = CU.avatar || '';
+    if (avFile) { subToast('editToast', '上傳頭像中…'); avURL = await uploadAvatar(avFile); }
+    await updateUserProfile(CU.uid, { displayName: name, handle, bio, avatar: avURL });
+    CU = { ...CU, displayName: name, handle, bio, avatar: avURL };
+    syncUI();
+    subToast('editToast', '✓ 資料已更新');
+    setTimeout(() => goBack(), 1200);
+  } catch (e) { subToast('editToast', '✗ 儲存失敗：' + e.message); }
+}
+
+// ── Account ──
+function fillAccount() {
+  const ce = document.getElementById('curEmail');
+  if (ce) ce.value = CU.email || '';
+}
+
+async function saveAccount() {
+  const np = document.getElementById('newPw').value;
+  const cp = document.getElementById('confirmPw').value;
+  if (!np) { subToast('acctToast', '✗ 請輸入新密碼'); return; }
+  if (np.length < 8) { subToast('acctToast', '✗ 密碼至少需 8 位'); return; }
+  if (np !== cp) { subToast('acctToast', '✗ 兩次密碼不一致'); return; }
+  try {
+    await auth.currentUser.updatePassword(np);
+    subToast('acctToast', '✓ 密碼已更新，請重新登入');
+    document.getElementById('newPw').value = '';
+    document.getElementById('confirmPw').value = '';
+    setTimeout(() => logoutUser().then(() => { window.location.href = 'index.html'; }), 1500);
+  } catch (e) {
+    const msg = e.code === 'auth/requires-recent-login' ? '✗ 請先重新登入再修改密碼' : '✗ ' + e.message;
+    subToast('acctToast', msg);
+  }
+}
+
+// ── Slot Picker ──
+let slotPickerSlot = null;
+
+async function checkAndShowSlotPicker(timeSlot) {
+  try {
+    const snap = await db.collection('videos')
+      .where('user_uid', '==', CU.uid)
+      .where('time_slot', '==', timeSlot)
+      .get();
+    if (snap.size <= 1) return;
+
+    slotPickerSlot = timeSlot;
+
+    const videos = snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => {
+        const ta = a.uploaded_at?.toDate?.() || new Date(0);
+        const tb = b.uploaded_at?.toDate?.() || new Date(0);
+        return tb - ta;
+      });
+
+    const list = document.getElementById('slotPickerList');
+    list.innerHTML = '';
+
+    videos.forEach(v => {
+      const isActive = v.is_active_slot;
+      const thumb = v.thumbnail_url || '';
+      const uploadedStr = (() => {
+        if (!v.uploaded_at) return '';
+        const d = v.uploaded_at.toDate ? v.uploaded_at.toDate() : new Date(v.uploaded_at);
+        const p = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '/' + p(d.getMonth()+1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+      })();
+
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px;background:rgba(164,137,119,0.06);border-radius:10px;border:1px solid ' + (isActive ? 'rgba(212,184,150,0.4)' : 'rgba(164,137,119,0.15)');
+      item.innerHTML =
+        '<div style="width:64px;height:57px;border-radius:8px;overflow:hidden;background:#111;flex-shrink:0">' +
+          (thumb ? '<img src="' + thumb + '" style="width:100%;height:100%;object-fit:cover">' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;opacity:0.3">🎬</div>') +
+        '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:11px;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (v.title || '無標題') + '</div>' +
+          '<div style="font-size:10px;color:var(--text-dim);margin-top:3px">' + uploadedStr + '</div>' +
+        '</div>' +
+        '<button onclick="pickSlotVideo(\'' + v.id + '\')" style="padding:6px 12px;border-radius:16px;border:1px solid ' + (isActive ? 'var(--sand)' : 'rgba(164,137,119,0.3)') + ';background:' + (isActive ? 'var(--brown)' : 'transparent') + ';color:' + (isActive ? 'var(--cream)' : 'var(--text-mid)') + ';font-size:10px;cursor:pointer;flex-shrink:0;font-family:\'DM Sans\',sans-serif">' + (isActive ? '目前顯示' : '選擇') + '</button>';
+
+      list.appendChild(item);
+    });
+
+    document.getElementById('slotPickerBackdrop').classList.add('open');
+    document.getElementById('slotPickerSheet').classList.add('open');
+  } catch (e) {
+    console.error('checkAndShowSlotPicker error:', e);
+  }
+}
+
+async function pickSlotVideo(videoId) {
+  try {
+    await setActiveSlotVideo(CU.uid, slotPickerSlot, videoId);
+    closeSlotPicker();
+    toast('✓ 已選擇代表影片');
+    await initHome();
+    if (curScr === 'my-videos') await initMyVideos();
+  } catch (e) {
+    toast('✗ 設定失敗：' + e.message);
+  }
+}
+
+function closeSlotPicker() {
+  document.getElementById('slotPickerBackdrop').classList.remove('open');
+  document.getElementById('slotPickerSheet').classList.remove('open');
+}
+
+// ── Partner Sheet ──
+let partnerTarget = null;
+let partnerSheetPairId = null;
+
+async function openPartnerSheet(u) {
+  partnerTarget = u;
+
+  // 填入資料
+  const letter = (u.displayName || '?').charAt(0).toUpperCase();
+  const av = document.getElementById('psAv');
+  av.innerHTML = u.avatar ? `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : letter;
+  document.getElementById('psName').textContent = u.displayName || '—';
+  document.getElementById('psHandle').textContent = '@' + (u.handle || '');
+  document.getElementById('psBio').textContent = u.bio || '';
+
+  const btn = document.getElementById('psPairBtn');
+  const unpairBtn = document.getElementById('psUnpairBtn');
+  const msg = document.getElementById('psStatusMsg');
+  btn.style.display = 'block';
+  unpairBtn.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '確認中…';
+  msg.style.display = 'none';
+  partnerSheetPairId = null;
+
+  const existing = await getPartnershipByType(CU.uid, activeTab);
+  if (existing) {
+    const isSame = existing.user_a_uid === u.uid || existing.user_b_uid === u.uid;
+    if (isSame) {
+      partnerSheetPairId = existing.id;
+      msg.textContent = '目前已配對中';
+      msg.style.display = 'block';
+      btn.style.display = 'none';
+      unpairBtn.style.display = 'block';
+    } else {
+      msg.textContent = '此分頁已有其他配對對象';
+      msg.style.display = 'block';
+      btn.textContent = '無法配對';
+    }
+  } else {
+    btn.disabled = false;
+    btn.textContent = '確認配對';
+  }
+
+  document.getElementById('partnerBackdrop').classList.add('open');
+  document.getElementById('partnerSheet').classList.add('open');
+}
+
+function closePartnerSheet() {
+  document.getElementById('partnerBackdrop').classList.remove('open');
+  document.getElementById('partnerSheet').classList.remove('open');
+  document.getElementById('psPairBtn').style.display = 'block';
+  document.getElementById('psUnpairBtn').style.display = 'none';
+  partnerTarget = null;
+  partnerSheetPairId = null;
+}
+
+async function confirmUnpair() {
+  if (!partnerSheetPairId) return;
+  if (!confirm('確定要解除配對嗎？解除後雙方的 Split Screen 將清空。')) return;
+  const btn = document.getElementById('psUnpairBtn');
+  btn.disabled = true;
+  btn.textContent = '解除中…';
+  try {
+    await cancelPartnership(partnerSheetPairId);
+    closePartnerSheet();
+    toast('✓ 已解除配對');
+    await initHome();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '解除配對';
+    toast('✗ 解除失敗：' + e.message);
+  }
+}
+
+async function confirmPair() {
+  if (!partnerTarget) return;
+  const btn = document.getElementById('psPairBtn');
+  btn.disabled = true;
+  btn.textContent = '配對中…';
+  try {
+    await createPartnership(CU.uid, CU.email, partnerTarget.uid, activeTab);
+    closePartnerSheet();
+    toast('✓ 配對成功！');
+    if (activeTab === 'close_friend') await initSearchScreen();
+    else await initHome();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '確認配對';
+    toast('✗ 配對失敗：' + e.message);
+  }
+}
+
+// ── Header Search ──
+let hdrSearchTimer = null;
+
+function openHdrSearch(screen) {
+  const overlay = document.getElementById(screen === 'home' ? 'homeSearchOverlay' : 'searchSearchOverlay');
+  const input   = document.getElementById(screen === 'home' ? 'homeHdrInput'     : 'searchHdrInput');
+  overlay.classList.add('open');
+  setTimeout(() => input.focus(), 50);
+  // preload suggestions (partner candidates)
+  fetchHdrSuggestions('', screen);
+}
+
+function closeHdrSearch(screen) {
+  const overlay   = document.getElementById(screen === 'home' ? 'homeSearchOverlay'  : 'searchSearchOverlay');
+  const input     = document.getElementById(screen === 'home' ? 'homeHdrInput'       : 'searchHdrInput');
+  const suggestEl = document.getElementById(screen === 'home' ? 'homeSuggestions'    : 'searchSuggestions');
+  overlay.classList.remove('open');
+  suggestEl.classList.remove('open');
+  input.value = '';
+  clearTimeout(hdrSearchTimer);
+}
+
+function onHdrKey(e, screen) {
+  if (e.key === 'Escape') { closeHdrSearch(screen); return; }
+  if (e.key === 'Enter') {
+    const input = document.getElementById(screen === 'home' ? 'homeHdrInput' : 'searchHdrInput');
+    const handle = input.value.trim().replace(/^@/, '').toLowerCase();
+    if (handle) selectHdrSuggestion(screen, handle);
+  }
+}
+
+function onHdrInput(screen) {
+  clearTimeout(hdrSearchTimer);
+  hdrSearchTimer = setTimeout(() => {
+    const input = document.getElementById(screen === 'home' ? 'homeHdrInput' : 'searchHdrInput');
+    fetchHdrSuggestions(input.value.trim(), screen);
+  }, 250);
+}
+
+async function fetchHdrSuggestions(query, screen) {
+  const suggestEl = document.getElementById(screen === 'home' ? 'homeSuggestions' : 'searchSuggestions');
+  if (!CU) return;
+
+  // Determine partner type for this screen
+  const pType = screen === 'home' ? 'friend' : 'close_friend';
+
+  // Fetch current pending invites (user_b = me, any status)
+  let incomingSnap;
+  try {
+    incomingSnap = await db.collection('partnerships')
+      .where('user_b_uid', '==', CU.uid).get();
+  } catch (_) { incomingSnap = { docs: [] }; }
+
+  // Prioritised candidates: people who already paired with me (user_a)
+  const priority = [];
+  for (const doc of incomingSnap.docs) {
+    const d = doc.data();
+    if (d.user_a_uid === CU.uid) continue;
+    priority.push({ uid: d.user_a_uid, email: d.user_a_email, _badge: '等待中' });
+  }
+
+  let results = [];
+
+  if (query.length >= 1) {
+    const handle = query.replace(/^@/, '').toLowerCase();
+    // Exact match first — no composite index needed
+    try {
+      const exactSnap = await db.collection('users').where('handle', '==', handle).get();
+      exactSnap.docs.forEach(doc => {
+        if (doc.id !== CU.uid) results.push({ uid: doc.id, ...doc.data() });
+      });
+    } catch (_) {}
+    // Prefix fallback for partial typing
+    if (results.length === 0) {
+      try {
+        const sentinel = handle + String.fromCodePoint(0xF8FF);
+        const prefixSnap = await db.collection('users')
+          .where('handle', '>=', handle)
+          .where('handle', '<=', sentinel)
+          .limit(10).get();
+        prefixSnap.docs.forEach(doc => {
+          if (doc.id !== CU.uid) results.push({ uid: doc.id, ...doc.data() });
+        });
+      } catch (_) {}
+    }
+  }
+  // Merge: priority items on top if they match query (or no query)
+  const priorityUids = new Set(priority.map(p => p.uid));
+  const merged = [];
+  for (const p of priority) {
+    const data = results.find(r => r.uid === p.uid);
+    if (data) merged.push({ ...data, _badge: p._badge });
+    else if (!query || p.email.toLowerCase().includes(query.toLowerCase())) {
+      // try to load from Firestore
+      try {
+        const ud = await db.collection('users').doc(p.uid).get();
+        if (ud.exists) merged.push({ uid: p.uid, ...ud.data(), _badge: p._badge });
+      } catch (_) {}
+    }
+  }
+  results.forEach(r => { if (!priorityUids.has(r.uid)) merged.push(r); });
+
+  // Render
+  if (merged.length === 0) {
+    suggestEl.innerHTML = query
+      ? `<div class="hdr-suggest-empty">找不到「${query}」</div>`
+      : `<div class="hdr-suggest-empty">輸入帳號 ID 搜尋</div>`;
+  } else {
+    suggestEl.innerHTML = merged.map(u => {
+      const letter = (u.displayName || '?').charAt(0).toUpperCase();
+      const avHtml = u.avatar
+        ? `<img src="${u.avatar}">`
+        : letter;
+      const badge = u._badge ? `<span class="hdr-suggest-badge">${u._badge}</span>` : '';
+      return `<div class="hdr-suggest-item" onclick="selectHdrUser('${screen}', '${u.uid}')">
+        <div class="hdr-suggest-av">${avHtml}</div>
+        <div class="hdr-suggest-info">
+          <div class="hdr-suggest-name">${u.displayName || '—'}</div>
+          <div class="hdr-suggest-handle">@${u.handle || ''}</div>
+        </div>
+        ${badge}
+      </div>`;
+    }).join('');
+  }
+  suggestEl.classList.add('open');
+}
+
+async function selectHdrUser(screen, uid) {
+  const pType = screen === 'home' ? 'friend' : 'close_friend';
+  activeTab = pType;
+  closeHdrSearch(screen);
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    if (!doc.exists) { toast('✗ 找不到此用戶'); return; }
+    await openPartnerSheet({ uid: doc.id, ...doc.data() });
+  } catch (e) {
+    toast('✗ 載入失敗：' + e.message);
+  }
+}
+
+async function selectHdrSuggestion(screen, handle) {
+  const pType = screen === 'home' ? 'friend' : 'close_friend';
+  activeTab = pType;
+  closeHdrSearch(screen);
+  try {
+    const snap = await db.collection('users').where('handle', '==', handle).get();
+    if (snap.empty) { toast('✗ 找不到此帳號 ID'); return; }
+    const doc = snap.docs[0];
+    if (doc.id === CU.uid) { toast('✗ 不能搜尋自己'); return; }
+    await openPartnerSheet({ uid: doc.id, ...doc.data() });
+  } catch (e) {
+    toast('✗ 搜尋失敗：' + e.message);
+  }
+}
+
+// Close suggestions when clicking outside
+document.addEventListener('click', function(e) {
+  ['home', 'search'].forEach(screen => {
+    const overlay = document.getElementById(screen === 'home' ? 'homeSearchOverlay' : 'searchSearchOverlay');
+    const suggestEl = document.getElementById(screen === 'home' ? 'homeSuggestions' : 'searchSuggestions');
+    if (overlay && !overlay.contains(e.target) && !e.target.closest('.home-search-btn')) {
+      if (overlay.classList.contains('open')) closeHdrSearch(screen);
+      else suggestEl && suggestEl.classList.remove('open');
+    }
+  });
+});
+
+// ── Tab ──
+async function setTab(type) {
+  activeTab = type;
+  splitIdx = 0;
+  document.querySelectorAll('.h-nav-item[id^="tab-"]').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('tab-' + type);
+  if (el) el.classList.add('active');
+  if (curScr === 'home') await initHome();
+  else await goScreen('home');
+}
+
+// ── Upload ──
+function openUploadSheet() {
+  document.getElementById('sheetBackdrop').classList.add('open');
+  document.getElementById('uploadSheet').classList.add('open');
+}
+function closeUploadSheet() {
+  document.getElementById('sheetBackdrop').classList.remove('open');
+  document.getElementById('uploadSheet').classList.remove('open');
+}
+function openGallery() {
+  closeUploadSheet();
+  document.getElementById('galleryOverlay').classList.add('open');
+}
+function closeGallery() {
+  document.getElementById('galleryOverlay').classList.remove('open');
+  document.getElementById('vidFileInp').value = '';
+  document.getElementById('galCountLbl').textContent = '尚未選取';
+  document.getElementById('galConfirmBtn').classList.remove('ready');
+  uploadFile = null;
+}
+
+// ── Camera Recording ──
+var camStream = null;
+var camRecorder = null;
+var camChunks = [];
+var camTimerInterval = null;
+var camElapsed = 0;
+var CAM_MAX_MS = 10000;
+
+async function openCamera() {
+  closeUploadSheet();
+  document.getElementById('cameraOverlay').classList.add('open');
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { aspectRatio: { ideal: 9 / 8 }, facingMode: { ideal: 'environment' } },
+      audio: true
+    });
+    document.getElementById('camPreview').srcObject = camStream;
+  } catch (err) {
+    showToast('無法開啟相機：' + (err.message || err));
+    closeCamera();
+  }
+}
+
+function closeCamera() {
+  if (camTimerInterval) { clearInterval(camTimerInterval); camTimerInterval = null; }
+  if (camRecorder && camRecorder.state !== 'inactive') {
+    camRecorder.onstop = null;
+    camRecorder.stop();
+  }
+  camRecorder = null;
+  camChunks = [];
+  camElapsed = 0;
+  if (camStream) { camStream.getTracks().forEach(function(t) { t.stop(); }); camStream = null; }
+  var preview = document.getElementById('camPreview');
+  preview.srcObject = null;
+  var timer = document.getElementById('camTimer');
+  timer.classList.remove('show', 'danger');
+  document.getElementById('camRecordBtn').classList.remove('recording');
+  document.getElementById('cameraOverlay').classList.remove('open');
+}
+
+function toggleCamRecording() {
+  if (!camRecorder || camRecorder.state === 'inactive') {
+    startCamRecording();
+  } else {
+    stopCamRecording();
+  }
+}
+
+function startCamRecording() {
+  if (!camStream) return;
+  camChunks = [];
+  camElapsed = 0;
+
+  var mimeType = '';
+  var candidates = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  for (var i = 0; i < candidates.length; i++) {
+    if (MediaRecorder.isTypeSupported(candidates[i])) { mimeType = candidates[i]; break; }
+  }
+  try {
+    camRecorder = new MediaRecorder(camStream, mimeType ? { mimeType: mimeType } : {});
+  } catch (e) {
+    camRecorder = new MediaRecorder(camStream);
+  }
+
+  camRecorder.ondataavailable = function(e) {
+    if (e.data && e.data.size > 0) camChunks.push(e.data);
+  };
+
+  camRecorder.onstop = function() {
+    clearInterval(camTimerInterval);
+    camTimerInterval = null;
+    var mt = camRecorder.mimeType || 'video/webm';
+    var blob = new Blob(camChunks, { type: mt });
+    var ext = mt.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    var file = new File([blob], 'camera-' + Date.now() + '.' + ext, { type: blob.type });
+    uploadFile = file;
+    closeCamera();
+    openUploadForm();
+  };
+
+  camRecorder.start(200);
+  document.getElementById('camRecordBtn').classList.add('recording');
+
+  var timerEl = document.getElementById('camTimer');
+  timerEl.textContent = '0.0s / 10s';
+  timerEl.classList.add('show');
+  timerEl.classList.remove('danger');
+
+  camTimerInterval = setInterval(function() {
+    camElapsed += 100;
+    var sec = camElapsed / 1000;
+    timerEl.textContent = sec.toFixed(1) + 's / 10s';
+    if (sec >= 7) timerEl.classList.add('danger');
+    if (camElapsed >= CAM_MAX_MS) stopCamRecording();
+  }, 100);
+}
+
+function stopCamRecording() {
+  if (camRecorder && camRecorder.state !== 'inactive') camRecorder.stop();
+}
+
+function onVideoSelected(inp) {
+  const f = inp.files[0];
+  if (!f) {
+    console.warn('No file selected');
+    return;
+  }
+
+  // 驗證檔案類型
+  const videoMimeTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+  if (!videoMimeTypes.includes(f.type) && !f.name.match(/\.(mp4|webm|mov|avi)$/i)) {
+    alert('請選擇有效的影片檔案 (MP4, WebM, MOV, AVI)');
+    console.error('Invalid video type:', f.type);
+    inp.value = ''; // 清空檔案輸入
+    return;
+  }
+
+  // 驗證檔案大小 (限制為 500MB)
+  const maxSize = 500 * 1024 * 1024;
+  if (f.size > maxSize) {
+    alert(`檔案大小 ${(f.size / 1024 / 1024).toFixed(2)}MB 超過限制 (500MB)`);
+    inp.value = '';
+    return;
+  }
+
+  uploadFile = f;
+  document.getElementById('galCountLbl').textContent = '已選：' + f.name.slice(0, 24);
+  document.getElementById('galConfirmBtn').classList.add('ready');
+  console.log('Video file selected:', f.name, f.type, f.size);
+}
+function openUploadForm() {
+  if (!uploadFile) {
+    alert('請先選擇一個影片檔案');
+    return;
+  }
+
+  // 驗證是否為有效的檔案物件
+  if (!(uploadFile instanceof File) && !(uploadFile instanceof Blob)) {
+    console.error('Invalid file object:', uploadFile);
+    alert('選擇的檔案無效，請重新選擇');
+    uploadFile = null;
+    return;
+  }
+
+  // 驗證檔案大小 (限制為 500MB)
+  const maxSize = 500 * 1024 * 1024;
+  if (uploadFile.size > maxSize) {
+    alert('檔案大小超過 500MB，請選擇較小的檔案');
+    uploadFile = null;
+    return;
+  }
+
+  const file = uploadFile;
+  closeGallery();
+  uploadFile = file;
+
+  let fileURL;
+  try {
+    fileURL = URL.createObjectURL(file);
+  } catch (error) {
+    console.error('Error creating object URL:', error);
+    alert('無法讀取檔案，請重新選擇');
+    uploadFile = null;
+    return;
+  }
+
+  // 自動標題
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const titleStr = `@${CU.handle || 'user'} - ${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  document.getElementById('uploadTitleDisplay').textContent = titleStr;
+
+  document.getElementById('uploadDesc').value = '';
+  document.getElementById('uploadProgress').classList.remove('show');
+
+  // 時間軸
+  initTrimUI(fileURL);
+  // 裁切
+  initCropUI(fileURL);
+
+  document.getElementById('uploadFormOverlay').classList.add('open');
+}
+function closeUploadForm() {
+  document.getElementById('uploadFormOverlay').classList.remove('open');
+  const cv = document.getElementById('cropVideo');
+  cv.pause(); cv.src = '';
+  document.getElementById('trimWrap').style.display = 'none';
+  document.getElementById('cropWrap').style.display = 'none';
+  uploadFile = null;
+}
+async function submitUpload() {
+  if (!uploadFile) return;
+  const title = document.getElementById('uploadTitleDisplay').textContent.trim();
+  const desc = document.getElementById('uploadDesc').value.trim();
+  const btn = document.getElementById('uploadSubmitBtn');
+  btn.disabled = true; btn.textContent = '上傳中…';
+  document.getElementById('uploadProgress').classList.add('show');
+  try {
+    const partnership = await getPartnershipByType(CU.uid, activeTab);
+    const partnershipId = partnership ? partnership.id : null;
+
+    const res = await uploadToCloudinary(uploadFile, pct => {
+      document.getElementById('uploadFill').style.width = pct + '%';
+      document.getElementById('uploadPct').textContent = Math.round(pct) + '%';
+    });
+
+    const rawUrl = res.secure_url;
+    const duration = Math.min(Math.round(trimEnd - trimStart), 10);
+
+    // 計算裁切座標（CSS 像素 → 原始影片像素）
+    let cropData = null;
+    const cropVideo = document.getElementById('cropVideo');
+    if (cropVideo && cropVideo.videoWidth > 0 && cropW > 0) {
+      const scaleX = cropVideo.videoWidth / cropVideo.offsetWidth;
+      const scaleY = cropVideo.videoHeight / cropVideo.offsetHeight;
+      cropData = {
+        x: Math.round(cropX * scaleX),
+        y: Math.round(cropY * scaleY),
+        w: Math.round(cropW * scaleX),
+        h: Math.round(cropH * scaleY)
+      };
+    }
+
+    const videoUrl = getTransformedVideoUrl(rawUrl, trimStart, trimEnd, cropData);
+    const thumbnail_url = getThumbnailUrl(rawUrl);
+
+    await saveVideoMetadata({
+      title,
+      description: desc,
+      url: videoUrl,
+      thumbnail_url,
+      partnershipId,
+      duration,
+      userId: CU.uid
+    });
+    const uploadedSlot = getTimeSlot(new Date());
+    closeUploadForm();
+    toast('✓ 影片上傳成功！');
+    await initHome();
+    if (curScr === 'my-videos') await initMyVideos();
+    await checkAndShowSlotPicker(uploadedSlot);
+  } catch (e) {
+    toast('✗ 上傳失敗：' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '上傳影片';
+    document.getElementById('uploadProgress').classList.remove('show');
+  }
+}
+
+// ── Trim Timeline ──
+function initTrimUI(fileURL) {
+  const tempVid = document.createElement('video');
+  tempVid.src = fileURL;
+  tempVid.preload = 'metadata';
+  tempVid.onloadedmetadata = () => {
+    const dur = tempVid.duration;
+    const maxDur = 10;
+    trimStart = 0;
+    trimEnd = Math.min(maxDur, dur);
+    document.getElementById('trimTotalLbl').textContent = '/ ' + Math.round(dur) + 's';
+    document.getElementById('trimWrap').style.display = 'flex';
+    renderTrimSelection(dur);
+    setupTrimDrag(dur);
+  };
+}
+
+function renderTrimSelection(totalDur) {
+  const timeline = document.getElementById('trimTimeline');
+  const w = timeline.offsetWidth;
+  const pxPerSec = w / totalDur;
+  const selEl = document.getElementById('trimSel');
+  const lEl = document.getElementById('trimHandleL');
+  const rEl = document.getElementById('trimHandleR');
+  const lPx = trimStart * pxPerSec;
+  const rPx = trimEnd * pxPerSec;
+  selEl.style.left = lPx + 'px';
+  selEl.style.width = (rPx - lPx) + 'px';
+  lEl.style.left = (lPx - 7) + 'px';
+  rEl.style.left = (rPx - 7) + 'px';
+  document.getElementById('trimStartLbl').textContent = trimStart.toFixed(1) + 's';
+  document.getElementById('trimEndLbl').textContent = trimEnd.toFixed(1) + 's';
+}
+
+function setupTrimDrag(totalDur) {
+  const timeline = document.getElementById('trimTimeline');
+  const lHandle = document.getElementById('trimHandleL');
+  const rHandle = document.getElementById('trimHandleR');
+
+  function makeDragHandler(isLeft) {
+    return function(startE) {
+      startE.preventDefault();
+      const rect = timeline.getBoundingClientRect();
+      const startX = startE.touches ? startE.touches[0].clientX : startE.clientX;
+      const startVal = isLeft ? trimStart : trimEnd;
+
+      function onMove(e) {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const dx = clientX - startX;
+        const dSec = (dx / rect.width) * totalDur;
+        if (isLeft) {
+          trimStart = Math.max(0, Math.min(startVal + dSec, trimEnd - 1));
+        } else {
+          trimEnd = Math.min(totalDur, Math.max(startVal + dSec, trimStart + 1));
+          if (trimEnd - trimStart > 10) {
+            if (isLeft) trimStart = trimEnd - 10;
+            else trimEnd = trimStart + 10;
+          }
+        }
+        if (trimEnd - trimStart > 10) trimEnd = trimStart + 10;
+        renderTrimSelection(totalDur);
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+    };
+  }
+
+  lHandle.onmousedown = makeDragHandler(true);
+  lHandle.ontouchstart = makeDragHandler(true);
+  rHandle.onmousedown = makeDragHandler(false);
+  rHandle.ontouchstart = makeDragHandler(false);
+}
+
+// ── Crop Frame ──
+function initCropUI(fileURL) {
+  const container = document.getElementById('cropContainer');
+  const video = document.getElementById('cropVideo');
+  const frame = document.getElementById('cropFrame');
+  video.src = fileURL;
+  video.onloadedmetadata = () => {
+    video.currentTime = trimStart;
+    document.getElementById('cropWrap').style.display = 'flex';
+    setTimeout(() => positionCropFrame(container, frame), 100);
+  };
+}
+
+function positionCropFrame(container, frame) {
+  const cW = container.offsetWidth;
+  const cH = container.offsetHeight;
+  // 9:8 frame
+  const frameW = cW * 0.85;
+  const frameH = frameW * (8 / 9);
+  cropX = (cW - frameW) / 2;
+  cropY = (cH - frameH) / 2;
+  cropW = frameW;
+  cropH = frameH;
+  applyFramePos(frame, cropX, cropY, frameW, frameH);
+  setupCropDrag(container, frame, frameW, frameH);
+}
+
+function applyFramePos(frame, x, y, w, h) {
+  frame.style.left = x + 'px';
+  frame.style.top = y + 'px';
+  frame.style.width = w + 'px';
+  frame.style.height = h + 'px';
+}
+
+function setupCropDrag(container, frame, frameW, frameH) {
+  frame.onmousedown = startDrag;
+  frame.ontouchstart = startDrag;
+
+  function startDrag(e) {
+    e.preventDefault();
+    const startX = e.touches ? e.touches[0].clientX : e.clientX;
+    const startY = e.touches ? e.touches[0].clientY : e.clientY;
+    const origX = cropX; const origY = cropY;
+    const cW = container.offsetWidth;
+    const cH = container.offsetHeight;
+
+    function onMove(e2) {
+      const cx = e2.touches ? e2.touches[0].clientX : e2.clientX;
+      const cy = e2.touches ? e2.touches[0].clientY : e2.clientY;
+      cropX = Math.max(0, Math.min(origX + cx - startX, cW - frameW));
+      cropY = Math.max(0, Math.min(origY + cy - startY, cH - frameH));
+      applyFramePos(frame, cropX, cropY, frameW, frameH);
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+  }
+}
+
+// ── Sidebar ──
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sideBackdrop').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sideBackdrop').classList.remove('open');
+}
+
+// ── Logout ──
+function openLogoutModal() { document.getElementById('logoutModal').classList.add('open'); }
+function closeLogoutModal() { document.getElementById('logoutModal').classList.remove('open'); }
+function onLogoutBackdrop(e) { if (e.target === document.getElementById('logoutModal')) closeLogoutModal(); }
+async function confirmLogout() {
+  closeLogoutModal();
+  try { await logoutUser(); window.location.href = 'index.html'; }
+  catch (e) { toast('登出失敗'); }
+}
+
+// ── Favorites ──
+async function initFavorites() {
+  try {
+    const favs = await getFavorites(CU.uid);
+    renderFavorites(favs);
+  } catch(e) {
+    console.error('initFavorites error:', e);
+  }
+}
+
+function formatSlot(slot) {
+  if (!slot) return '';
+  const parts = slot.split('_');
+  return parts[0].replace(/-/g, '/') + ' ' + (parts[1] || '00') + ':00';
+}
+
+function renderFavorites(favs) {
+  favData = favs || [];
+  const list = document.getElementById('favList');
+  if (!favData.length) {
+    list.innerHTML = `
+      <div class="fav-empty">
+        <div class="fav-empty-ico">☆</div>
+        <div class="fav-empty-txt">尚無收藏</div>
+        <div class="fav-empty-sub">在 Split Screen 點擊收藏按鈕</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = '';
+  favData.forEach((fav, idx) => {
+    const myThumb = fav.my_video_thumb || (fav.my_video_url ? getThumbnailUrl(fav.my_video_url) : '');
+    const ptThumb = fav.partner_video_thumb || (fav.partner_video_url ? getThumbnailUrl(fav.partner_video_url) : '');
+    const card = document.createElement('div');
+    card.className = 'fav-card';
+    card.innerHTML = `
+      <div class="fav-card-thumbs" onclick="openFavPlay(${idx})">
+        <div class="fav-thumb">
+          ${myThumb ? `<img src="${myThumb}" loading="lazy">` : '<div class="fav-thumb-ph">🎬</div>'}
+        </div>
+        <div class="fav-divider"></div>
+        <div class="fav-thumb">
+          ${ptThumb ? `<img src="${ptThumb}" loading="lazy">` : '<div class="fav-thumb-ph">🎬</div>'}
+        </div>
+      </div>
+      <div class="fav-card-info">
+        <div class="fav-slot">${formatSlot(fav.time_slot)}</div>
+        <div class="fav-del" onclick="deleteFavCard(event,'${fav.id}')">✕</div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+async function deleteFavCard(e, id) {
+  e.stopPropagation();
+  try {
+    await deleteFavorite(id);
+    toast('✓ 已移除收藏');
+    await initFavorites();
+  } catch(err) {
+    toast('✗ 刪除失敗：' + err.message);
+  }
+}
+
+function openFavPlay(idx) {
+  const fav = favData[idx];
+  if (!fav) return;
+  const topVid = document.getElementById('favVidTop');
+  const botVid = document.getElementById('favVidBot');
+  const topPh  = document.getElementById('favTopPh');
+  const botPh  = document.getElementById('favBotPh');
+
+  if (fav.my_video_url) {
+    topVid.src = fav.my_video_url;
+    topVid.style.display = 'block';
+    topPh.style.display = 'none';
+    topVid.play().catch(() => {});
+  } else {
+    topVid.pause(); topVid.src = '';
+    topVid.style.display = 'none';
+    topPh.style.display = 'flex';
+  }
+
+  if (fav.partner_video_url) {
+    botVid.src = fav.partner_video_url;
+    botVid.style.display = 'block';
+    botPh.style.display = 'none';
+    botVid.play().catch(() => {});
+  } else {
+    botVid.pause(); botVid.src = '';
+    botVid.style.display = 'none';
+    botPh.style.display = 'flex';
+  }
+
+  document.getElementById('favPlayOverlay').classList.add('open');
+}
+
+function closeFavPlay() {
+  document.getElementById('favPlayOverlay').classList.remove('open');
+  const topVid = document.getElementById('favVidTop');
+  const botVid = document.getElementById('favVidBot');
+  topVid.pause(); topVid.src = '';
+  botVid.pause(); botVid.src = '';
+}
+
+// ── Toasts ──
+function toast(msg) {
+  const t = document.getElementById('gToast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function subToast(id, msg) {
+  const t = document.getElementById(id);
+  if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Instangram\" -Recurse -Directory | Select-Object -First 50 | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Instangram\" | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Instangram\\\\js\" -Recurse | ForEach-Object { $_.FullName } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Instangram\\\\css\" -Recurse | ForEach-Object { $_.FullName } | Sort-Object)"
+    ]
+  }
+}
