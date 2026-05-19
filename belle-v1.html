@@ -3246,6 +3246,7 @@ function closeFavPlay() {
 
 // ── 下載今日影片（FFmpeg.wasm 合併） ──
 var _ffmpeg = null;
+var _ffmpegBusy = false;
 
 async function ensureFFmpeg() {
   if (!window.FFmpeg) {
@@ -3267,6 +3268,8 @@ async function ensureFFmpeg() {
 }
 
 async function downloadTodayVids(btn) {
+  if (_ffmpegBusy) { toast('合併中，請稍候…'); return; }
+
   const today = new Date().toISOString().slice(0, 10);
   const vids = myVids
     .filter(v => v.time_slot && v.time_slot.startsWith(today))
@@ -3274,13 +3277,15 @@ async function downloadTodayVids(btn) {
 
   if (!vids.length) { toast('今天還沒有影片'); return; }
 
+  _ffmpegBusy = true;
   btn.disabled = true;
   btn.textContent = '載入中…';
   const written = [];
 
   try {
     toast('載入影片工具…（首次約 30 秒）');
-    await ensureFFmpeg();
+    // 若上次失敗導致實例卡住，強制重建
+    try { await ensureFFmpeg(); } catch (_) { _ffmpeg = null; await ensureFFmpeg(); }
 
     for (var i = 0; i < vids.length; i++) {
       toast('下載影片 ' + (i + 1) + ' / ' + vids.length + '…');
@@ -3309,8 +3314,10 @@ async function downloadTodayVids(btn) {
   } catch (e) {
     toast('✗ 下載失敗：' + e.message);
     console.error('[download]', e);
+    _ffmpeg = null; // 失敗時重置，下次重新建立乾淨的實例
   } finally {
     written.forEach(function(f) { try { _ffmpeg && _ffmpeg.FS('unlink', f); } catch (_) {} });
+    _ffmpegBusy = false;
     btn.disabled = false;
     btn.textContent = '下載今日';
   }
