@@ -385,12 +385,20 @@ body {
   cursor:pointer;z-index:2;
 }
 .vid-cell-slot {
-  position:absolute;bottom:4px;left:4px;right:4px;
-  color:rgba(212,184,150,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);
+  position:absolute;bottom:0;left:0;right:0;z-index:2;
+  padding:18px 6px 5px;
+  background:linear-gradient(to top,rgba(10,7,4,0.88),transparent);
   line-height:1.3;overflow:hidden;
 }
-.vid-cell-slot-date { font-size:7px;letter-spacing:1px;opacity:0.8; }
-.vid-cell-slot-time { font-size:9px;letter-spacing:1.5px;font-weight:500; }
+.vid-cell-slot-label {
+  font-size:6px;letter-spacing:2px;color:var(--sand);
+  text-transform:uppercase;opacity:0.7;margin-bottom:2px;
+}
+.vid-cell-slot-title {
+  font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+  font-size:10px;color:var(--cream);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 .vids-empty {
   grid-column:1/-1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:60px 20px;text-align:center;
@@ -2082,14 +2090,13 @@ function renderGrid() {
   myVids.forEach((v) => {
     const cell = document.createElement('div');
     cell.className = 'vid-cell';
-    const slotParts = (v.time_slot || '').split('_');
-    const datePart = slotParts[0] ? slotParts[0].slice(5).replace('-', '/') : '';
-    const timePart = slotParts[1] ? slotParts[1].replace('-', ':') : '';
+    const greeting = slotGreeting(v.time_slot);
+    const titleTxt = v.title || '無標題';
     cell.innerHTML = `
       <video src="${v.url ? qualifyUrl(v.url) : ''}" autoplay muted loop playsinline></video>
       <div class="vid-cell-slot">
-        ${datePart ? `<div class="vid-cell-slot-date">${datePart}</div>` : ''}
-        ${timePart ? `<div class="vid-cell-slot-time">${timePart}</div>` : ''}
+        <div class="vid-cell-slot-label">${greeting}</div>
+        <div class="vid-cell-slot-title">${titleTxt}</div>
       </div>
       <div class="vid-cell-del" onclick="delVid(event,'${v.id}')">✕</div>`;
     grid.appendChild(cell);
