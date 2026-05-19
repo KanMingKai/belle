@@ -3244,31 +3244,11 @@ function closeFavPlay() {
   botVid.pause(); botVid.src = '';
 }
 
-// ── 下載今日影片（FFmpeg.wasm 0.12.x 單執行緒，相容 Safari） ──
-var _ffmpeg12 = null;
-var _ffmpegUtil = null;
-var _ffmpegBusy = false;
-
-async function ensureFFmpeg() {
-  if (_ffmpeg12) return;
-  const BASE = 'https://cdn.jsdelivr.net/npm/';
-  const [{ FFmpeg }, util] = await Promise.all([
-    import(BASE + '@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js'),
-    import(BASE + '@ffmpeg/util@0.12.1/dist/esm/index.js')
-  ]);
-  _ffmpegUtil = util;
-  _ffmpeg12 = new FFmpeg();
-  const ffBase   = BASE + '@ffmpeg/ffmpeg@0.12.6/dist/esm/';
-  const coreBase = BASE + '@ffmpeg/core@0.12.6/dist/umd/';
-  await _ffmpeg12.load({
-    workerURL: await util.toBlobURL(ffBase   + 'worker.js',        'text/javascript'),
-    coreURL:   await util.toBlobURL(coreBase + 'ffmpeg-core.js',   'text/javascript'),
-    wasmURL:   await util.toBlobURL(coreBase + 'ffmpeg-core.wasm', 'application/wasm'),
-  });
-}
+// ── 下載今日影片（JSZip 打包，相容所有瀏覽器） ──
+var _dlBusy = false;
 
 async function downloadTodayVids(btn) {
-  if (_ffmpegBusy) { toast('合併中，請稍候…'); return; }
+  if (_dlBusy) { toast('下載中，請稍候…'); return; }
 
   const today = new Date().toISOString().slice(0, 10);
   const vids = myVids
@@ -3277,45 +3257,45 @@ async function downloadTodayVids(btn) {
 
   if (!vids.length) { toast('今天還沒有影片'); return; }
 
-  _ffmpegBusy = true;
+  _dlBusy = true;
   btn.disabled = true;
-  btn.textContent = '載入中…';
-  const written = [];
+  btn.textContent = '準備中…';
 
   try {
-    toast('載入影片工具…（首次約 30 秒）');
-    await ensureFFmpeg();
+    if (!window.JSZip) {
+      await new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+        s.onload = resolve;
+        s.onerror = function() { reject(new Error('JSZip 載入失敗')); };
+        document.head.appendChild(s);
+      });
+    }
+
+    var zip = new JSZip();
 
     for (var i = 0; i < vids.length; i++) {
       toast('下載影片 ' + (i + 1) + ' / ' + vids.length + '…');
-      var fname = 'v' + i + '.mp4';
+      var slotParts = (vids[i].time_slot || '').split('_');
+      var timeStr = slotParts[1] ? slotParts[1].replace('-', '') : String(i + 1).padStart(2, '0');
       var url = qualifyUrl(vids[i].url).replace(/,f_auto/g, '').replace(/f_auto,/g, '');
-      await _ffmpeg12.writeFile(fname, await _ffmpegUtil.fetchFile(url));
-      written.push(fname);
+      var res = await fetch(url);
+      var blob = await res.blob();
+      zip.file(today + '-' + timeStr + '.mp4', blob);
     }
 
-    var listTxt = written.map(function(f) { return "file '" + f + "'"; }).join('\n');
-    await _ffmpeg12.writeFile('list.txt', listTxt);
-    written.push('list.txt');
-
-    toast('合併 ' + vids.length + ' 部影片，請稍候…');
-    await _ffmpeg12.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'out.mp4']);
-    written.push('out.mp4');
-
-    var outData = await _ffmpeg12.readFile('out.mp4');
-    var blob = new Blob([outData], { type: 'video/mp4' });
+    toast('打包中…');
+    var zipBlob = await zip.generateAsync({ type: 'blob' });
     var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'belle-' + today + '.mp4';
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = 'belle-' + today + '.zip';
     a.click();
     toast('✓ 下載完成');
   } catch (e) {
     toast('✗ 下載失敗：' + e.message);
     console.error('[download]', e);
-    _ffmpeg12 = null;
   } finally {
-    if (_ffmpeg12) written.forEach(function(f) { try { _ffmpeg12.deleteFile(f); } catch(_) {} });
-    _ffmpegBusy = false;
+    _dlBusy = false;
     btn.disabled = false;
     btn.textContent = '下載今日';
   }
