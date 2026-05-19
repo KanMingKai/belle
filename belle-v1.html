@@ -3283,8 +3283,11 @@ async function downloadTodayVids(btn) {
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'belle-' + today + '.mp4';
+    a.setAttribute('download', 'belle-' + today + '.mp4');
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     toast('✓ 下載完成');
   } catch (e) {
     toast('✗ 下載失敗：' + e.message);
