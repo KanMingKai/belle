@@ -1205,6 +1205,7 @@ body {
       <div class="grid-hdr">
         <div class="grid-hdr-label">所有影片</div>
         <div class="grid-hdr-count" id="gridCount">0 部</div>
+        <button id="dlTodayBtn" onclick="downloadTodayVids(this)" style="margin-left:auto;padding:4px 12px;border-radius:16px;border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">下載今日</button>
       </div>
       <div class="vids-grid" id="vidsGrid">
         <div class="vids-empty" style="grid-column:1/-1">
@@ -3128,6 +3129,45 @@ function closeFavPlay() {
   const botVid = document.getElementById('favVidBot');
   topVid.pause(); topVid.src = '';
   botVid.pause(); botVid.src = '';
+}
+
+// ── 下載今日影片（呼叫本地 server.js /merge） ──
+async function downloadTodayVids(btn) {
+  const today = new Date().toISOString().slice(0, 10);
+  const vids = myVids
+    .filter(v => v.time_slot && v.time_slot.startsWith(today))
+    .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+
+  if (!vids.length) { toast('今天還沒有影片'); return; }
+
+  const urls = vids.map(v => qualifyUrl(v.url));
+  btn.disabled = true;
+  btn.textContent = '合併中…';
+  toast('正在下載並合併 ' + vids.length + ' 部影片，請稍候…');
+
+  try {
+    const res = await fetch('http://127.0.0.1:5500/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'belle-' + today + '.mp4';
+    a.click();
+    toast('✓ 下載完成');
+  } catch (e) {
+    toast('✗ 下載失敗：' + e.message);
+    console.error('[download]', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '下載今日';
+  }
 }
 
 // ── Toasts ──
