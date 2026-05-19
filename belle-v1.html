@@ -3266,15 +3266,16 @@ function getGToken() {
       _gTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GDRIVE_CLIENT_ID,
         scope:     GDRIVE_SCOPE,
-        callback:  (resp) => {
-          if (resp.error) { reject(new Error(resp.error)); return; }
-          _gAccessToken = resp.access_token;
-          // token 到期前清掉，下次重新取
-          setTimeout(() => { _gAccessToken = null; }, (resp.expires_in - 60) * 1000);
-          resolve(_gAccessToken);
-        }
+        callback:  ''
       });
     }
+    // 每次都更新 callback，確保 resolve/reject 對應當前 Promise
+    _gTokenClient.callback = (resp) => {
+      if (resp.error) { reject(new Error(resp.error)); return; }
+      _gAccessToken = resp.access_token;
+      setTimeout(() => { _gAccessToken = null; }, (resp.expires_in - 60) * 1000);
+      resolve(_gAccessToken);
+    };
     _gTokenClient.requestAccessToken({ prompt: '' });
   });
 }
