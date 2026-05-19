@@ -930,6 +930,61 @@ body {
 .fav-empty-txt { font-family:'Playfair Display',serif;font-style:italic;font-size:16px;color:var(--cream);opacity:0.5; }
 .fav-empty-sub { font-size:11px;color:var(--text-dim); }
 
+/* ── FAV SCREEN REDESIGN ── */
+.fav-scroll { flex:1;min-height:0;overflow-y:auto; }
+.fav-scroll::-webkit-scrollbar { display:none; }
+.fav-featured {
+  margin:8px 12px;border-radius:14px;
+  background:linear-gradient(145deg,#3a2518,#1c1009);
+  position:relative;overflow:hidden;flex-shrink:0;
+  border:1px solid rgba(164,137,119,0.1);
+  display:flex;flex-direction:column;height:260px;cursor:pointer;
+}
+.fav-feat-half { flex:1;overflow:hidden;position:relative;background:#000; }
+.fav-feat-half video { position:absolute;inset:0;width:100%;height:100%;object-fit:cover; }
+.fav-feat-sep {
+  height:22px;flex-shrink:0;background:rgba(13,10,8,0.88);
+  display:flex;align-items:center;justify-content:center;
+  border-top:1px solid rgba(164,137,119,0.2);
+  border-bottom:1px solid rgba(164,137,119,0.2);
+}
+.fav-feat-gm {
+  font-family:'Cinzel',serif;font-size:7px;letter-spacing:2px;
+  color:var(--sand);opacity:0.8;text-transform:uppercase;
+}
+.fav-feat-who {
+  position:absolute;top:6px;left:8px;z-index:2;
+  font-size:8px;letter-spacing:1px;color:rgba(255,255,255,0.55);
+  background:rgba(0,0,0,0.35);padding:2px 7px;border-radius:8px;text-transform:uppercase;
+}
+.fav-grid {
+  display:grid;grid-template-columns:repeat(3,1fr);align-content:start;gap:2px;padding:0 2px 2px;
+}
+.fav-grid-cell {
+  aspect-ratio:9/8;position:relative;overflow:hidden;cursor:pointer;
+  background:linear-gradient(145deg,#2e1e14,#180f0a);
+  display:flex;flex-direction:column;
+}
+.fav-grid-cell.active::after {
+  content:'';position:absolute;inset:0;z-index:3;pointer-events:none;
+  box-shadow:inset 0 0 0 2px rgba(212,184,150,0.55);
+}
+.fav-grid-half { flex:1;overflow:hidden;position:relative; }
+.fav-grid-half img { width:100%;height:100%;object-fit:cover;display:block; }
+.fav-grid-half-ph { width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0.2; }
+.fav-grid-sep { height:1px;background:rgba(164,137,119,0.35);flex-shrink:0; }
+.fav-grid-del {
+  position:absolute;top:4px;right:4px;z-index:2;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;
+  font-size:8px;color:rgba(255,255,255,0.65);cursor:pointer;
+}
+.fav-grid-slot {
+  position:absolute;bottom:3px;left:4px;right:4px;font-size:7px;
+  color:rgba(212,184,150,0.6);letter-spacing:0.5px;
+  text-shadow:0 1px 3px rgba(0,0,0,0.8);overflow:hidden;white-space:nowrap;
+}
+
 /* ── FAV PLAY OVERLAY ── */
 .fav-play-overlay {
   position:absolute;inset:0;z-index:80;background:#000;
@@ -1230,8 +1285,31 @@ body {
       <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--sand);opacity:0.7">收藏</div>
       <div style="width:48px"></div>
     </div>
-    <div class="fav-list" id="favList">
-      <div class="fav-empty">
+    <div class="fav-scroll">
+      <!-- 精選播放區 -->
+      <div class="fav-featured" id="favFeatured" onclick="openFavFeatured()" style="display:none">
+        <div class="fav-feat-half">
+          <video id="favFeatTopVid" muted playsinline loop></video>
+          <div class="fav-feat-who">對方</div>
+        </div>
+        <div class="fav-feat-sep">
+          <span class="fav-feat-gm" id="favFeatGm">Good Morning</span>
+        </div>
+        <div class="fav-feat-half">
+          <video id="favFeatBotVid" muted playsinline loop></video>
+          <div class="fav-feat-who" style="top:auto;bottom:6px">我</div>
+        </div>
+        <div class="feat-dur" id="favFeatDur">—</div>
+      </div>
+      <!-- 格子標頭 -->
+      <div class="grid-hdr" id="favGridHdr" style="display:none">
+        <div class="grid-hdr-label">所有收藏</div>
+        <div class="grid-hdr-count" id="favCount">0 則</div>
+      </div>
+      <!-- 3欄格子 -->
+      <div class="fav-grid" id="favGrid"></div>
+      <!-- 空狀態 -->
+      <div class="fav-empty" id="favEmpty">
         <div class="fav-empty-ico">☆</div>
         <div class="fav-empty-txt">尚無收藏</div>
         <div class="fav-empty-sub">在 Split Screen 點擊收藏按鈕</div>
@@ -1560,6 +1638,7 @@ let uploadFile = null;
 let activeTab = 'friend';
 let currentPartnershipId = null;
 let favData = [];
+let favCurIdx = 0;
 let fromCamera = false;
 let trimStart = 0;
 let trimEnd = 10;
@@ -3044,38 +3123,72 @@ function formatSlot(slot) {
 
 function renderFavorites(favs) {
   favData = favs || [];
-  const list = document.getElementById('favList');
+  const featured = document.getElementById('favFeatured');
+  const gridHdr  = document.getElementById('favGridHdr');
+  const grid     = document.getElementById('favGrid');
+  const empty    = document.getElementById('favEmpty');
+
   if (!favData.length) {
-    list.innerHTML = `
-      <div class="fav-empty">
-        <div class="fav-empty-ico">☆</div>
-        <div class="fav-empty-txt">尚無收藏</div>
-        <div class="fav-empty-sub">在 Split Screen 點擊收藏按鈕</div>
-      </div>`;
+    featured.style.display = 'none';
+    gridHdr.style.display  = 'none';
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
     return;
   }
-  list.innerHTML = '';
+
+  empty.style.display    = 'none';
+  featured.style.display = 'flex';
+  gridHdr.style.display  = 'flex';
+  document.getElementById('favCount').textContent = favData.length + ' 則';
+
+  grid.innerHTML = '';
   favData.forEach((fav, idx) => {
     const myThumb = fav.my_video_thumb || (fav.my_video_url ? getThumbnailUrl(fav.my_video_url) : '');
     const ptThumb = fav.partner_video_thumb || (fav.partner_video_url ? getThumbnailUrl(fav.partner_video_url) : '');
-    const card = document.createElement('div');
-    card.className = 'fav-card';
-    card.innerHTML = `
-      <div class="fav-card-thumbs" onclick="openFavPlay(${idx})">
-        <div class="fav-thumb">
-          ${myThumb ? `<img src="${myThumb}" loading="lazy">` : '<div class="fav-thumb-ph">🎬</div>'}
-        </div>
-        <div class="fav-divider"></div>
-        <div class="fav-thumb">
-          ${ptThumb ? `<img src="${ptThumb}" loading="lazy">` : '<div class="fav-thumb-ph">🎬</div>'}
-        </div>
-      </div>
-      <div class="fav-card-info">
-        <div class="fav-slot">${formatSlot(fav.time_slot)}</div>
-        <div class="fav-del" onclick="deleteFavCard(event,'${fav.id}')">✕</div>
-      </div>`;
-    list.appendChild(card);
+    const slotParts = (fav.time_slot || '').split('_');
+    const timeStr = slotParts[1] ? slotParts[1].replace('-', ':') : '';
+
+    const cell = document.createElement('div');
+    cell.className = 'fav-grid-cell' + (idx === favCurIdx ? ' active' : '');
+    cell.onclick = () => playFavAt(idx);
+    cell.innerHTML =
+      '<div class="fav-grid-half">' +
+        (ptThumb ? `<img src="${ptThumb}" loading="lazy">` : '<div class="fav-grid-half-ph">🎬</div>') +
+      '</div>' +
+      '<div class="fav-grid-sep"></div>' +
+      '<div class="fav-grid-half">' +
+        (myThumb ? `<img src="${myThumb}" loading="lazy">` : '<div class="fav-grid-half-ph">🎬</div>') +
+      '</div>' +
+      `<div class="fav-grid-del" onclick="deleteFavCard(event,'${fav.id}')">✕</div>` +
+      `<div class="fav-grid-slot">${timeStr}</div>`;
+    grid.appendChild(cell);
   });
+
+  playFavAt(favCurIdx < favData.length ? favCurIdx : 0);
+}
+
+function playFavAt(idx) {
+  if (!favData.length) return;
+  favCurIdx = idx;
+  const fav = favData[idx];
+
+  document.querySelectorAll('.fav-grid-cell').forEach((c, i) => {
+    c.classList.toggle('active', i === idx);
+  });
+
+  const topVid = document.getElementById('favFeatTopVid');
+  const botVid = document.getElementById('favFeatBotVid');
+  topVid.src = fav.partner_video_url ? qualifyUrl(fav.partner_video_url) : '';
+  botVid.src = fav.my_video_url ? qualifyUrl(fav.my_video_url) : '';
+  topVid.play().catch(() => {});
+  botVid.play().catch(() => {});
+
+  document.getElementById('favFeatGm').textContent = slotGreeting(fav.time_slot);
+  document.getElementById('favFeatDur').textContent = (idx + 1) + ' / ' + favData.length;
+}
+
+function openFavFeatured() {
+  openFavPlay(favCurIdx);
 }
 
 async function deleteFavCard(e, id) {
