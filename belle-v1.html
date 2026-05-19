@@ -3244,8 +3244,9 @@ function closeFavPlay() {
   botVid.pause(); botVid.src = '';
 }
 
-// ── 下載今日影片（JSZip 打包，相容所有瀏覽器） ──
+// ── 下載今日影片（Render 後端合併為單一 .mp4） ──
 var _dlBusy = false;
+var MERGE_API = 'https://belle-backend-4htn.onrender.com/merge';
 
 async function downloadTodayVids(btn) {
   if (_dlBusy) { toast('下載中，請稍候…'); return; }
@@ -3259,36 +3260,30 @@ async function downloadTodayVids(btn) {
 
   _dlBusy = true;
   btn.disabled = true;
-  btn.textContent = '準備中…';
+  btn.textContent = '合併中…';
 
   try {
-    if (!window.JSZip) {
-      await new Promise(function(resolve, reject) {
-        var s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
-        s.onload = resolve;
-        s.onerror = function() { reject(new Error('JSZip 載入失敗')); };
-        document.head.appendChild(s);
-      });
+    const urls = vids.map(v =>
+      qualifyUrl(v.url).replace(/,f_auto/g, '').replace(/f_auto,/g, '')
+    );
+
+    toast('上傳影片清單到伺服器…');
+    const res = await fetch(MERGE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'HTTP ' + res.status }));
+      throw new Error(err.error || 'HTTP ' + res.status);
     }
 
-    var zip = new JSZip();
-
-    for (var i = 0; i < vids.length; i++) {
-      toast('下載影片 ' + (i + 1) + ' / ' + vids.length + '…');
-      var slotParts = (vids[i].time_slot || '').split('_');
-      var timeStr = slotParts[1] ? slotParts[1].replace('-', '') : String(i + 1).padStart(2, '0');
-      var url = qualifyUrl(vids[i].url).replace(/,f_auto/g, '').replace(/f_auto,/g, '');
-      var res = await fetch(url);
-      var blob = await res.blob();
-      zip.file(today + '-' + timeStr + '.mp4', blob);
-    }
-
-    toast('打包中…');
-    var zipBlob = await zip.generateAsync({ type: 'blob' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(zipBlob);
-    a.download = 'belle-' + today + '.zip';
+    toast('下載合併影片…');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'belle-' + today + '.mp4';
     a.click();
     toast('✓ 下載完成');
   } catch (e) {
