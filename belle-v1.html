@@ -3280,8 +3280,33 @@ function getGToken() {
   });
 }
 
+async function getOrCreateBelleFolder(accessToken) {
+  const headers = { Authorization: 'Bearer ' + accessToken };
+
+  // 搜尋根目錄下名為 belle 的資料夾
+  const q = encodeURIComponent("name='belle' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false");
+  const searchRes = await fetch(
+    'https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)',
+    { headers }
+  );
+  if (!searchRes.ok) throw new Error('Drive 搜尋失敗：' + searchRes.status);
+  const { files } = await searchRes.json();
+  if (files && files.length > 0) return files[0].id;
+
+  // 不存在則建立
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'belle', mimeType: 'application/vnd.google-apps.folder', parents: ['root'] })
+  });
+  if (!createRes.ok) throw new Error('建立 belle 資料夾失敗：' + createRes.status);
+  const folder = await createRes.json();
+  return folder.id;
+}
+
 async function uploadToGDrive(blob, filename, accessToken) {
-  const metadata = { name: filename, mimeType: 'video/mp4' };
+  const folderId = await getOrCreateBelleFolder(accessToken);
+  const metadata = { name: filename, mimeType: 'video/mp4', parents: [folderId] };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', blob);
