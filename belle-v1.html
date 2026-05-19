@@ -3244,7 +3244,28 @@ function closeFavPlay() {
   botVid.pause(); botVid.src = '';
 }
 
-// ── 下載今日影片（呼叫本地 server.js /merge） ──
+// ── 下載今日影片（FFmpeg.wasm 合併） ──
+var _ffmpeg = null;
+
+async function ensureFFmpeg() {
+  if (!window.FFmpeg) {
+    await new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+      s.onload = resolve;
+      s.onerror = function() { reject(new Error('FFmpeg 載入失敗')); };
+      document.head.appendChild(s);
+    });
+  }
+  if (!_ffmpeg) {
+    _ffmpeg = FFmpeg.createFFmpeg({
+      corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+      log: false
+    });
+  }
+  if (!_ffmpeg.isLoaded()) await _ffmpeg.load();
+}
+
 async function downloadTodayVids(btn) {
   const today = new Date().toISOString().slice(0, 10);
   const vids = myVids
@@ -3253,23 +3274,34 @@ async function downloadTodayVids(btn) {
 
   if (!vids.length) { toast('今天還沒有影片'); return; }
 
-  const urls = vids.map(v => qualifyUrl(v.url));
   btn.disabled = true;
-  btn.textContent = '合併中…';
-  toast('正在下載並合併 ' + vids.length + ' 部影片，請稍候…');
+  btn.textContent = '載入中…';
+  const written = [];
 
   try {
-    const res = await fetch('http://127.0.0.1:5500/merge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || res.statusText);
+    toast('載入影片工具…（首次約 30 秒）');
+    await ensureFFmpeg();
+
+    for (var i = 0; i < vids.length; i++) {
+      toast('下載影片 ' + (i + 1) + ' / ' + vids.length + '…');
+      var fname = 'v' + i + '.mp4';
+      var url = vids[i].url.replace(/,f_auto/g, '').replace(/f_auto,/g, '');
+      var data = await FFmpeg.fetchFile(qualifyUrl(url));
+      _ffmpeg.FS('writeFile', fname, data);
+      written.push(fname);
     }
-    const blob = await res.blob();
-    const a = document.createElement('a');
+
+    var listTxt = written.map(function(f) { return "file '" + f + "'"; }).join('\n');
+    _ffmpeg.FS('writeFile', 'list.txt', listTxt);
+    written.push('list.txt');
+
+    toast('合併 ' + vids.length + ' 部影片，請稍候…');
+    await _ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'out.mp4');
+    written.push('out.mp4');
+
+    var outData = _ffmpeg.FS('readFile', 'out.mp4');
+    var blob = new Blob([outData.buffer], { type: 'video/mp4' });
+    var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'belle-' + today + '.mp4';
     a.click();
@@ -3278,6 +3310,7 @@ async function downloadTodayVids(btn) {
     toast('✗ 下載失敗：' + e.message);
     console.error('[download]', e);
   } finally {
+    written.forEach(function(f) { try { _ffmpeg && _ffmpeg.FS('unlink', f); } catch (_) {} });
     btn.disabled = false;
     btn.textContent = '下載今日';
   }
