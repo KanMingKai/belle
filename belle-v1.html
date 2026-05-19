@@ -3258,10 +3258,12 @@ async function ensureFFmpeg() {
   ]);
   _ffmpegUtil = util;
   _ffmpeg12 = new FFmpeg();
-  const coreBase = BASE + '@ffmpeg/core@0.12.6/dist/umd';
+  const ffBase   = BASE + '@ffmpeg/ffmpeg@0.12.6/dist/esm/';
+  const coreBase = BASE + '@ffmpeg/core@0.12.6/dist/umd/';
   await _ffmpeg12.load({
-    coreURL: await util.toBlobURL(coreBase + '/ffmpeg-core.js',   'text/javascript'),
-    wasmURL: await util.toBlobURL(coreBase + '/ffmpeg-core.wasm', 'application/wasm'),
+    workerURL: await util.toBlobURL(ffBase   + 'worker.js',        'text/javascript'),
+    coreURL:   await util.toBlobURL(coreBase + 'ffmpeg-core.js',   'text/javascript'),
+    wasmURL:   await util.toBlobURL(coreBase + 'ffmpeg-core.wasm', 'application/wasm'),
   });
 }
 
