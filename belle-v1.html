@@ -385,10 +385,12 @@ body {
   cursor:pointer;z-index:2;
 }
 .vid-cell-slot {
-  position:absolute;bottom:4px;left:4px;right:4px;font-size:7px;
-  color:rgba(212,184,150,0.6);letter-spacing:1px;
-  text-shadow:0 1px 3px rgba(0,0,0,0.8);overflow:hidden;white-space:nowrap;
+  position:absolute;bottom:4px;left:4px;right:4px;
+  color:rgba(212,184,150,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);
+  line-height:1.3;overflow:hidden;
 }
+.vid-cell-slot-date { font-size:7px;letter-spacing:1px;opacity:0.8; }
+.vid-cell-slot-time { font-size:9px;letter-spacing:1.5px;font-weight:500; }
 .vids-empty {
   grid-column:1/-1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:60px 20px;text-align:center;
@@ -2081,10 +2083,14 @@ function renderGrid() {
     const cell = document.createElement('div');
     cell.className = 'vid-cell';
     const slotParts = (v.time_slot || '').split('_');
-    const timeStr = slotParts[1] ? slotParts[1].replace('-', ':') : '';
+    const datePart = slotParts[0] ? slotParts[0].slice(5).replace('-', '/') : '';
+    const timePart = slotParts[1] ? slotParts[1].replace('-', ':') : '';
     cell.innerHTML = `
       <video src="${v.url ? qualifyUrl(v.url) : ''}" autoplay muted loop playsinline></video>
-      <div class="vid-cell-slot">${timeStr}</div>
+      <div class="vid-cell-slot">
+        ${datePart ? `<div class="vid-cell-slot-date">${datePart}</div>` : ''}
+        ${timePart ? `<div class="vid-cell-slot-time">${timePart}</div>` : ''}
+      </div>
       <div class="vid-cell-del" onclick="delVid(event,'${v.id}')">✕</div>`;
     grid.appendChild(cell);
   });
