@@ -3308,13 +3308,18 @@ async function downloadTodayVids(btn) {
 
   _dlBusy = true;
   btn.disabled = true;
-  btn.textContent = '合併中…';
+  btn.textContent = '授權中…';
 
   try {
+    // 先取得 Google token（必須在 user gesture 的同步脈絡下觸發 popup）
+    toast('請授權 Google Drive…');
+    const token = await getGToken();
+
     const urls = vids.map(v =>
       qualifyUrl(v.url).replace(/,f_auto/g, '').replace(/f_auto,/g, '')
     );
 
+    btn.textContent = '合併中…';
     toast('伺服器合併影片中…');
     const res = await fetch(MERGE_API, {
       method: 'POST',
@@ -3328,9 +3333,6 @@ async function downloadTodayVids(btn) {
 
     const blob = await res.blob();
     const filename = 'belle-' + today + '.mp4';
-
-    toast('授權 Google Drive…');
-    const token = await getGToken();
 
     toast('上傳至 Google Drive…');
     btn.textContent = '上傳中…';
