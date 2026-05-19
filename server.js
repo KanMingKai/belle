@@ -1,25 +1,12 @@
-const http     = require('http');
-const https    = require('https');
-const fs       = require('fs');
-const path     = require('path');
-const os       = require('os');
+const http       = require('http');
+const https      = require('https');
+const fs         = require('fs');
+const path       = require('path');
+const os         = require('os');
 const { execFile } = require('child_process');
+const ffmpegPath = require('ffmpeg-static');
 
-const PORT = 5500;
-const ROOT = __dirname;
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js':   'application/javascript',
-  '.css':  'text/css',
-  '.mp4':  'video/mp4',
-  '.wasm': 'application/wasm',
-  '.png':  'image/png',
-  '.jpg':  'image/jpeg',
-  '.svg':  'image/svg+xml',
-  '.ico':  'image/x-icon',
-  '.json': 'application/json',
-};
+const PORT = process.env.PORT || 5500;
 
 // ── 工具：從 URL 下載檔案到本地路徑 ──
 function downloadFile(url, destPath) {
@@ -30,6 +17,7 @@ function downloadFile(url, destPath) {
     function doGet(targetUrl) {
       proto.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
+          file.close();
           doGet(res.headers.location);
           return;
         }
@@ -91,7 +79,7 @@ async function handleMerge(req, res) {
       tmpFiles.push(outPath);
 
       await new Promise((resolve, reject) => {
-        execFile('ffmpeg', [
+        execFile(ffmpegPath, [
           '-y',
           '-f', 'concat',
           '-safe', '0',
@@ -132,34 +120,20 @@ http.createServer((req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // /ping
   if (req.url === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
   }
 
-  // /merge
   if (req.method === 'POST' && req.url === '/merge') {
     handleMerge(req, res);
     return;
   }
 
-  // 靜態檔案
-  const urlPath  = decodeURIComponent(req.url.split('?')[0]);
-  const filePath = path.join(ROOT, urlPath === '/' ? '/belle-v1.html' : urlPath);
-  const ext      = path.extname(filePath).toLowerCase();
+  res.writeHead(404);
+  res.end('Not found');
 
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('404 Not Found: ' + urlPath);
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-    res.end(data);
-  });
-
-}).listen(PORT, '127.0.0.1', () => {
-  console.log('伺服器啟動：http://127.0.0.1:' + PORT + '/belle-v1.html');
+}).listen(PORT, () => {
+  console.log('Server running on port ' + PORT);
 });
