@@ -108,35 +108,21 @@ async function handleMerge(req, res) {
           const labelPath = path.join(tmpDir, 'v' + i + '_t.mp4');
           tmpFiles.push(labelPath);
 
-          // format=rgba first so drawbox/drawtext alpha blending works on yuv420p input
-          const gradient = [
-            'format=rgba',
-            'drawbox=x=0:y=ih-70:w=iw:h=14:color=black@0.56:t=9999',
-            'drawbox=x=0:y=ih-56:w=iw:h=14:color=black@0.42:t=9999',
-            'drawbox=x=0:y=ih-42:w=iw:h=14:color=black@0.28:t=9999',
-            'drawbox=x=0:y=ih-28:w=iw:h=14:color=black@0.14:t=9999',
-            'drawbox=x=0:y=ih-14:w=iw:h=14:color=black@0.07:t=9999',
-          ];
+          // drawbox with alpha triggers ffmpeg filter reinit (-22) on yuv420p streams.
+          // Use drawtext+shadow for visibility instead — confirmed stable.
+          const f = ['setsar=1'];
 
-          // White accent line: 2px wide × 28px tall, x=16, aligned to greeting baseline
-          const accentLine = "drawbox=x=16:y=ih-50:w=2:h=28:color=white@0.9:t=9999";
-
-          const f = [...gradient, accentLine];
-
-          // Greeting: Playfair Italic, 18px, white@0.85, left of accent line
           if (segGm) f.push(
             "drawtext=fontfile='" + gmFont + "':text='" + escapeFfmpegText(segGm) +
-            "':x=26:y=ih-48:fontsize=18:fontcolor=white@0.85"
+            "':x=16:y=h-text_h-30:fontsize=18:fontcolor=white@0.9" +
+            ":shadowcolor=black@0.7:shadowx=2:shadowy=2"
           );
 
-          // Title tag: Josefin Thin, 9px, white@0.55, uppercase via text (already normalized)
           if (segTitle) f.push(
             "drawtext=fontfile='" + tagFont + "':text='" + escapeFfmpegText(segTitle.toUpperCase()) +
-            "':x=26:y=ih-26:fontsize=9:fontcolor=white@0.55"
+            "':x=16:y=h-text_h-8:fontsize=11:fontcolor=white@0.75" +
+            ":shadowcolor=black@0.5:shadowx=1:shadowy=1"
           );
-
-          // Convert back to yuv420p for libx264 encoder
-          f.push('format=yuv420p');
 
           try {
             await new Promise((resolve, reject) => {
