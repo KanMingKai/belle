@@ -2,5 +2,15 @@ services:
   - type: web
     name: belle-backend
     env: node
-    buildCommand: apt-get install -y ffmpeg && npm install
+    buildCommand: >
+      npm install;
+      curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz" -o /tmp/ff.tar.xz 2>/dev/null;
+      if [ -s /tmp/ff.tar.xz ]; then
+        tar -xJf /tmp/ff.tar.xz -C /tmp/;
+        cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ffmpeg ./ffmpeg-draw;
+        chmod +x ./ffmpeg-draw;
+        echo "[build] ffmpeg-draw installed";
+      else
+        echo "[build] ffmpeg-draw download failed, film will fallback to concat";
+      fi
     startCommand: node server.js

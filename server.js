@@ -115,7 +115,7 @@ async function handleMerge(req, res) {
         tmpFiles.push(listPath);
 
         const hasFont = fs.existsSync(FONT_PATH);
-        if (layout === 'film' && hasFont && (date || greeting)) {
+        if (layout === 'film' && filmFfmpegPath && hasFont && (date || greeting)) {
           // Pass 1: fast concat
           const concatPath = path.join(tmpDir, 'concat.mp4');
           tmpFiles.push(concatPath);
@@ -205,19 +205,10 @@ async function handleMerge(req, res) {
   });
 }
 
-// ── 啟動診斷：偵測哪個 ffmpeg 有 drawtext ──
-let filmFfmpegPath = ffmpegPath; // 預設用 npm binary
-try {
-  const filters = require('child_process').execFileSync('/usr/bin/ffmpeg', ['-filters'], { timeout: 5000 }).toString();
-  if (filters.includes('drawtext')) {
-    filmFfmpegPath = '/usr/bin/ffmpeg';
-    console.log('[startup] system ffmpeg drawtext: available ✓ → film 使用 /usr/bin/ffmpeg');
-  } else {
-    console.log('[startup] system ffmpeg drawtext: NOT available ✗');
-  }
-} catch (_) {
-  console.log('[startup] system ffmpeg: NOT found, film will fallback to concat');
-}
+// ── 啟動診斷：偵測 build 時下載的 ffmpeg-draw binary ──
+const DRAW_FFMPEG_PATH = path.join(__dirname, 'ffmpeg-draw');
+const filmFfmpegPath = fs.existsSync(DRAW_FFMPEG_PATH) ? DRAW_FFMPEG_PATH : null;
+console.log('[startup] ffmpeg-draw:', filmFfmpegPath ? 'found ✓' : 'NOT found ✗ (film will fallback to concat)');
 console.log('[startup] font file:', fs.existsSync(FONT_PATH) ? 'found ✓' : 'NOT found ✗');
 
 // ── 主伺服器 ──
