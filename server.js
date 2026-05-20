@@ -76,7 +76,16 @@ async function handleMerge(req, res) {
       return;
     }
 
-    if (layout === 'grid4') segments = segments.slice(0, 4);
+    // grid 模式：補齊到 N 的倍數，從頭循環（前端通常已補，此處作為防呆）
+    const gridSize = layout === 'grid4' ? 4 : (layout === 'grid9' ? 9 : 0);
+    if (gridSize) {
+      const orig = segments.length;
+      let pi = 0;
+      while (segments.length % gridSize !== 0) {
+        segments.push(segments[pi % orig]);
+        pi++;
+      }
+    }
 
     const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'igmerge-'));
     const tmpFiles = [];
@@ -148,25 +157,65 @@ async function handleMerge(req, res) {
       const outPath = path.join(tmpDir, 'merged.mp4');
       tmpFiles.push(outPath);
 
-      if (layout === 'grid4') {
-        // 四格 2×2 — 不足 4 部時補用最後一部
-        while (vidPaths.length < 4) vidPaths.push(vidPaths[vidPaths.length - 1]);
-        await new Promise((resolve, reject) => {
-          execFile(ffmpegPath, [
-            '-y',
-            '-i', vidPaths[0], '-i', vidPaths[1], '-i', vidPaths[2], '-i', vidPaths[3],
-            '-filter_complex',
-            '[0:v]scale=462:410,setsar=1[tl];' +
-            '[1:v]scale=462:410,setsar=1[tr];' +
-            '[2:v]scale=462:410,setsar=1[bl];' +
-            '[3:v]scale=462:410,setsar=1[br];' +
-            '[tl][tr]hstack=inputs=2[top];[bl][br]hstack=inputs=2[bot];' +
-            '[top][bot]vstack=inputs=2[v]',
-            '-map', '[v]', '-an',
-            '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast', '-shortest',
-            outPath
-          ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
-        });
+      if (layout === 'grid4' || layout === 'grid9') {
+        // 格子模式：cols × rows 同時播放，多輪用 concat
+        const cols = layout === 'grid4' ? 2 : 3;
+        const rows = layout === 'grid4' ? 2 : 3;
+        // grid4 沿用既有 462×410（≈924×820 輸出），grid9 用 308×273（≈924×819 同尺寸）
+        const cellW = layout === 'grid4' ? 462 : 308;
+        const cellH = layout === 'grid4' ? 410 : 273;
+        const N     = cols * rows;
+
+        const roundPaths = [];
+        for (let r = 0; r < vidPaths.length; r += N) {
+          const group    = vidPaths.slice(r, r + N);
+          const roundOut = path.join(tmpDir, 'round' + (r / N) + '.mp4');
+          tmpFiles.push(roundOut);
+
+          // 組 filter：先 scale，再 hstack 每行，最後 vstack 全部
+          const scaleParts = group.map((_, i) =>
+            '[' + i + ':v]scale=' + cellW + ':' + cellH + ',setsar=1[c' + i + ']'
+          );
+          const rowParts = [];
+          for (let rr = 0; rr < rows; rr++) {
+            const refs = [];
+            for (let cc = 0; cc < cols; cc++) refs.push('[c' + (rr * cols + cc) + ']');
+            rowParts.push(refs.join('') + 'hstack=inputs=' + cols + '[r' + rr + ']');
+          }
+          const stackRefs = [];
+          for (let rr = 0; rr < rows; rr++) stackRefs.push('[r' + rr + ']');
+          const finalStack = stackRefs.join('') + 'vstack=inputs=' + rows + '[v]';
+          const filter = scaleParts.concat(rowParts).concat([finalStack]).join(';');
+
+          const inputArgs = [];
+          group.forEach(p => { inputArgs.push('-i', p); });
+
+          await new Promise((resolve, reject) => {
+            execFile(ffmpegPath, [
+              '-y',
+              ...inputArgs,
+              '-filter_complex', filter,
+              '-map', '[v]', '-an',
+              '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast', '-shortest',
+              roundOut
+            ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
+          });
+          roundPaths.push(roundOut);
+          console.log('[' + layout + '] round ' + (r / N + 1) + ' done');
+        }
+
+        if (roundPaths.length === 1) {
+          fs.copyFileSync(roundPaths[0], outPath);
+        } else {
+          const listPath = path.join(tmpDir, 'rounds.txt');
+          fs.writeFileSync(listPath, roundPaths.map(p => "file '" + p.replace(/\\/g, '/') + "'").join('\n'));
+          tmpFiles.push(listPath);
+          await new Promise((resolve, reject) => {
+            execFile(ffmpegPath, [
+              '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outPath
+            ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
+          });
+        }
 
       } else {
         const listPath = path.join(tmpDir, 'list.txt');

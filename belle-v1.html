@@ -711,7 +711,7 @@ body {
 .split-line { height:2px;background:rgba(164,137,119,0.35);flex-shrink:0; }
 .split-who {
   position:absolute;top:8px;left:10px;font-size:9px;
-  color:rgba(212,184,150,0.55);letter-spacing:2px;text-transform:uppercase;
+  color:rgba(255,255,255,0.9);letter-spacing:2px;text-transform:uppercase;
   background:rgba(0,0,0,0.35);padding:2px 7px;border-radius:8px;
 }
 .split-who-bot { top:auto;bottom:8px; }
@@ -1000,7 +1000,7 @@ body {
 }
 .fav-feat-who {
   position:absolute;top:6px;left:8px;z-index:2;
-  font-size:8px;letter-spacing:1px;color:rgba(255,255,255,0.55);
+  font-size:8px;letter-spacing:1px;color:rgba(255,255,255,0.9);
   background:rgba(0,0,0,0.35);padding:2px 7px;border-radius:8px;text-transform:uppercase;
 }
 .fav-grid {
@@ -1550,6 +1550,10 @@ body {
       <div class="vlog-layout-opt" data-layout="grid4" onclick="selectVlogLayout(this)">
         <div class="opt-ico-wrap">▦</div>
         <div class="vlog-opt-label">四格</div>
+      </div>
+      <div class="vlog-layout-opt" data-layout="grid9" onclick="selectVlogLayout(this)">
+        <div class="opt-ico-wrap">▩</div>
+        <div class="vlog-opt-label">九格</div>
       </div>
     </div>
     <div class="vlog-greeting-wrap" id="vlogGreetingWrap">
@@ -3584,8 +3588,8 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
     .filter(v => v.time_slot && v.time_slot.startsWith(dateStr))
     .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
 
-  if (layout === 'grid4') vids = vids.slice(0, 4);
   if (!vids.length) { toast('該日沒有影片'); return; }
+  vids = _padToGridSize(vids, layout);
 
   const btn       = triggerBtn || document.getElementById('dlTodayBtn');
   const origLabel = btn ? btn.textContent : '';
@@ -3639,8 +3643,25 @@ function selectVlogLayout(el) {
 
 function _updateVlogDesc() {
   const layout = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
-  const desc = { concat: '原版拼接，快速輸出', film: '燒入日期 + 問候語 + belle 浮水印', grid4: '前 4 則收藏 2×2 同時播放' };
+  const desc = {
+    concat: '原版拼接，快速輸出',
+    film:   '燒入日期 + 問候語 + belle 浮水印',
+    grid4:  '全部影片 2×2 同時播放，不足從頭補',
+    grid9:  '全部影片 3×3 同時播放，不足從頭補'
+  };
   document.getElementById('vlogDlDesc').textContent = desc[layout] || '';
+}
+
+// ── grid layout 補齊：不足倍數時從頭循環 ──
+function _padToGridSize(arr, layout) {
+  const sizes = { grid4: 4, grid9: 9 };
+  const n = sizes[layout];
+  if (!n || !arr.length) return arr;
+  const out = [...arr];
+  const orig = arr.length;
+  let i = 0;
+  while (out.length % n !== 0) { out.push(arr[i % orig]); i++; }
+  return out;
 }
 
 async function downloadFavVids() {
@@ -3656,12 +3677,14 @@ async function downloadFavVids() {
   }
 
   let segments = [];
-  if (layout === 'grid4') {
-    segments = (favData || []).slice(0, 4).map(f => {
-      const myVid = (myVids || []).find(v => v.id === f.my_video_id);
-      const url   = f.my_video_url || f.partner_video_url;
-      return url ? _buildSeg(url, f.time_slot) : null;
-    }).filter(Boolean);
+  if (layout === 'grid4' || layout === 'grid9') {
+    segments = (favData || [])
+      .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''))
+      .map(f => {
+        const url = f.my_video_url || f.partner_video_url;
+        return url ? _buildSeg(url, f.time_slot) : null;
+      }).filter(Boolean);
+    segments = _padToGridSize(segments, layout);
   } else {
     segments = [...(favData || [])]
       .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''))
