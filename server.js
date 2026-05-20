@@ -111,15 +111,15 @@ async function handleMerge(req, res) {
           // Gradient: 5 stacked drawboxes simulating linear-gradient(to top, black@0.7 → transparent)
           // Heights cover bottom 70px; each layer slightly less opaque toward top
           const gradient = [
-            'drawbox=x=0:y=ih-70:w=iw:h=14:color=black@0.56:t=fill',
-            'drawbox=x=0:y=ih-56:w=iw:h=14:color=black@0.42:t=fill',
-            'drawbox=x=0:y=ih-42:w=iw:h=14:color=black@0.28:t=fill',
-            'drawbox=x=0:y=ih-28:w=iw:h=14:color=black@0.14:t=fill',
-            'drawbox=x=0:y=ih-14:w=iw:h=14:color=black@0.07:t=fill',
+            'drawbox=x=0:y=ih-70:w=iw:h=14:color=black@0.56:t=9999',
+            'drawbox=x=0:y=ih-56:w=iw:h=14:color=black@0.42:t=9999',
+            'drawbox=x=0:y=ih-42:w=iw:h=14:color=black@0.28:t=9999',
+            'drawbox=x=0:y=ih-28:w=iw:h=14:color=black@0.14:t=9999',
+            'drawbox=x=0:y=ih-14:w=iw:h=14:color=black@0.07:t=9999',
           ];
 
           // White accent line: 2px wide × 28px tall, x=16, aligned to greeting baseline
-          const accentLine = "drawbox=x=16:y=ih-50:w=2:h=28:color=white@0.9:t=fill";
+          const accentLine = "drawbox=x=16:y=ih-50:w=2:h=28:color=white@0.9:t=9999";
 
           const f = [...gradient, accentLine];
 
@@ -148,7 +148,7 @@ async function handleMerge(req, res) {
             vidPaths[i] = labelPath;
             console.log('[label] segment', i, 'done');
           } catch (e) {
-            console.warn('[label] segment', i, 'failed, using original:', e.message.slice(0, 80));
+            console.warn('[label] segment', i, 'failed:', e.message.slice(0, 600));
           }
         }
       }
