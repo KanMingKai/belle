@@ -1,3 +1,9 @@
-# COOP header removed — was needed for FFmpeg.wasm SharedArrayBuffer,
-# no longer required since merging moved to Render backend.
-# Keeping it would block Google OAuth popup postMessage.
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
