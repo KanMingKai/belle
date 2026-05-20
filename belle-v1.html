@@ -3606,6 +3606,11 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
       title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
     }));
 
+    if (layout === 'grid9') {
+      await _doGrid9Wasm(token, segments, 'belle-grid9-' + dateStr + '.mp4', btn, origLabel);
+      return;
+    }
+
     const dateLabel = dateStr.replaceAll('-', '.');
     if (btn) btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
@@ -3647,7 +3652,7 @@ function _updateVlogDesc() {
     concat: '原版拼接，快速輸出',
     film:   '燒入日期 + 問候語 + belle 浮水印',
     grid4:  '全部影片 2×2 同時播放，不足從頭補',
-    grid9:  '全部影片 3×3 同時播放，不足從頭補'
+    grid9:  '全部影片 3×3 同時播放，瀏覽器端處理（較慢）'
   };
   document.getElementById('vlogDlDesc').textContent = desc[layout] || '';
 }
@@ -3712,6 +3717,11 @@ async function downloadFavVids() {
     const today     = new Date().toISOString().slice(0, 10);
     const dateLabel = today.replaceAll('-', '.');
 
+    if (layout === 'grid9') {
+      await _doGrid9Wasm(token, segments, 'belle-grid9-favs-' + today + '.mp4', btn, '下載收藏');
+      return;
+    }
+
     btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
     const res = await fetch(MERGE_API, {
@@ -3737,8 +3747,121 @@ async function downloadFavVids() {
   } finally {
     _dlBusy = false;
     btn.disabled = false;
-    btn.textContent = '下載收藏';
+    if (btn.textContent !== '✓') btn.textContent = '下載收藏';
   }
+}
+
+// ── Grid9：瀏覽器端 ffmpeg.wasm（單線程，不需 COOP header）──
+var _ffmpegWasm    = null;
+var _ffmpegLoading = null;
+
+function _loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('載入失敗：' + src));
+    document.head.appendChild(s);
+  });
+}
+
+function _getFFmpeg() {
+  if (_ffmpegWasm) return Promise.resolve(_ffmpegWasm);
+  if (_ffmpegLoading) return _ffmpegLoading;
+  _ffmpegLoading = Promise.all([
+    _loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js'),
+    _loadScript('https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js')
+  ]).then(async () => {
+    const { FFmpeg }    = FFmpegWASM;
+    const { toBlobURL } = FFmpegUtil;
+    const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    const ff   = new FFmpeg();
+    ff.on('log', ({ message }) => console.log('[wasm]', message));
+    await ff.load({
+      coreURL: await toBlobURL(base + '/ffmpeg-core.js',   'text/javascript'),
+      wasmURL: await toBlobURL(base + '/ffmpeg-core.wasm', 'application/wasm'),
+    });
+    _ffmpegWasm    = ff;
+    _ffmpegLoading = null;
+    return ff;
+  });
+  return _ffmpegLoading;
+}
+
+async function _doGrid9Wasm(token, segments, filename, btn, origLabel) {
+  const N = 9, W = 308, H = 273; // 3×3 → 924×819
+
+  btn.textContent = '載入 wasm…';
+  toast('載入瀏覽器端 ffmpeg（約 28MB，首次需要）…');
+
+  const ffmpeg = await _getFFmpeg();
+  try { ffmpeg.off('progress'); } catch (_) {}
+  ffmpeg.on('progress', ({ progress }) => {
+    if (progress >= 0 && progress <= 1)
+      btn.textContent = Math.round(progress * 100) + '%';
+  });
+
+  const totalRounds = Math.ceil(segments.length / N);
+  const roundFiles  = [];
+
+  for (let r = 0; r < totalRounds; r++) {
+    const group = segments.slice(r * N, (r + 1) * N);
+
+    // 平行下載並寫入 wasm 虛擬 FS
+    btn.textContent = '下載 ' + (r + 1) + '/' + totalRounds + '…';
+    toast('下載第 ' + (r + 1) + ' 輪影片…');
+    const names = await Promise.all(group.map(async (seg, i) => {
+      const res  = await fetch(seg.url);
+      if (!res.ok) throw new Error('無法下載影片 ' + (i + 1) + '（HTTP ' + res.status + '）');
+      const buf  = await res.arrayBuffer();
+      const name = 'r' + r + 'v' + i + '.mp4';
+      await ffmpeg.writeFile(name, new Uint8Array(buf));
+      return name;
+    }));
+
+    // 組 filter：scale 各格 → 每行 hstack → 全部 vstack
+    const scales = names.map((_, i) =>
+      '[' + i + ':v]scale=' + W + ':' + H + ',setsar=1[c' + i + ']'
+    );
+    const rows = [0, 1, 2].map(rr =>
+      '[c' + (rr*3) + '][c' + (rr*3+1) + '][c' + (rr*3+2) + ']hstack=inputs=3[r' + rr + ']'
+    );
+    const filter = [...scales, ...rows, '[r0][r1][r2]vstack=inputs=3[v]'].join(';');
+    const roundOut = 'round' + r + '.mp4';
+
+    btn.textContent = '合成 ' + (r + 1) + '/' + totalRounds + '…';
+    toast('合成第 ' + (r + 1) + ' 輪 3×3…');
+    await ffmpeg.exec([
+      '-y', ...names.flatMap(n => ['-i', n]),
+      '-filter_complex', filter,
+      '-map', '[v]', '-an', '-shortest',
+      '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast', roundOut
+    ]);
+    roundFiles.push(roundOut);
+    for (const n of names) { try { await ffmpeg.deleteFile(n); } catch (_) {} }
+  }
+
+  // concat 所有 rounds
+  let finalData;
+  if (roundFiles.length === 1) {
+    finalData = await ffmpeg.readFile(roundFiles[0]);
+  } else {
+    btn.textContent = '合併中…';
+    await ffmpeg.writeFile('concat.txt', roundFiles.map(p => 'file ' + p).join('\n'));
+    await ffmpeg.exec([
+      '-y', '-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', 'final.mp4'
+    ]);
+    finalData = await ffmpeg.readFile('final.mp4');
+  }
+
+  const blob = new Blob([finalData.buffer], { type: 'video/mp4' });
+  btn.textContent = '上傳中…';
+  toast('上傳至 Google Drive…');
+  const file = await uploadToGDrive(blob, filename, token);
+  toast('✓ 已存至 Google Drive：' + file.name);
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = origLabel; }, 3000);
 }
 
 // ── Toasts ──
