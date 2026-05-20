@@ -40,7 +40,9 @@ function cleanup(files) {
   files.forEach(f => { try { fs.unlinkSync(f); } catch (_) {} });
 }
 
-const FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+const FONT_PATH      = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+const PLAYFAIR_FONT  = path.join(__dirname, 'fonts', 'PlayfairDisplay-Italic.ttf');
+const JOSEFIN_FONT   = path.join(__dirname, 'fonts', 'JosefinSans-Thin.ttf');
 
 function escapeFfmpegText(str) {
   return str.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'").replace(/%/g, '%%');
@@ -90,10 +92,13 @@ async function handleMerge(req, res) {
         tmpFiles.push(dest);
       }
 
-      // ── Step 2: 每段燒入問候語 + 標題（左下角）──
+      // ── Step 2: 每段燒入問候語 + 標題（txt.html 風格：漸層+白線+字型）──
       const canLabel = filmFfmpegPath && fs.existsSync(FONT_PATH);
       if (canLabel) {
-        const font = escapeFfmpegText(FONT_PATH);
+        // 選用 Playfair/Josefin（若 build 下載成功），否則 fallback DejaVu
+        const gmFont  = fs.existsSync(PLAYFAIR_FONT) ? escapeFfmpegText(PLAYFAIR_FONT)  : escapeFfmpegText(FONT_PATH);
+        const tagFont = fs.existsSync(JOSEFIN_FONT)  ? escapeFfmpegText(JOSEFIN_FONT)   : escapeFfmpegText(FONT_PATH);
+
         for (let i = 0; i < vidPaths.length; i++) {
           const seg     = segments[i] || {};
           const segGm   = (seg.greeting || '').replace(/[^\x00-\x7F]/g, '').trim();
@@ -102,9 +107,33 @@ async function handleMerge(req, res) {
 
           const labelPath = path.join(tmpDir, 'v' + i + '_t.mp4');
           tmpFiles.push(labelPath);
-          const f = [];
-          if (segGm)    f.push("drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(segGm)    + "':x=16:y=h-text_h-34:fontsize=18:fontcolor=white@0.9:shadowcolor=black@0.6:shadowx=1:shadowy=1");
-          if (segTitle) f.push("drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(segTitle) + "':x=16:y=h-text_h-10:fontsize=13:fontcolor=white@0.75:shadowcolor=black@0.4:shadowx=1:shadowy=1");
+
+          // Gradient: 5 stacked drawboxes simulating linear-gradient(to top, black@0.7 → transparent)
+          // Heights cover bottom 70px; each layer slightly less opaque toward top
+          const gradient = [
+            'drawbox=x=0:y=ih-70:w=iw:h=14:color=black@0.56:t=fill',
+            'drawbox=x=0:y=ih-56:w=iw:h=14:color=black@0.42:t=fill',
+            'drawbox=x=0:y=ih-42:w=iw:h=14:color=black@0.28:t=fill',
+            'drawbox=x=0:y=ih-28:w=iw:h=14:color=black@0.14:t=fill',
+            'drawbox=x=0:y=ih-14:w=iw:h=14:color=black@0.07:t=fill',
+          ];
+
+          // White accent line: 2px wide × 28px tall, x=16, aligned to greeting baseline
+          const accentLine = "drawbox=x=16:y=ih-50:w=2:h=28:color=white@0.9:t=fill";
+
+          const f = [...gradient, accentLine];
+
+          // Greeting: Playfair Italic, 18px, white@0.85, left of accent line
+          if (segGm) f.push(
+            "drawtext=fontfile='" + gmFont + "':text='" + escapeFfmpegText(segGm) +
+            "':x=26:y=ih-48:fontsize=18:fontcolor=white@0.85"
+          );
+
+          // Title tag: Josefin Thin, 9px, white@0.55, uppercase via text (already normalized)
+          if (segTitle) f.push(
+            "drawtext=fontfile='" + tagFont + "':text='" + escapeFfmpegText(segTitle.toUpperCase()) +
+            "':x=26:y=ih-26:fontsize=9:fontcolor=white@0.55"
+          );
 
           try {
             await new Promise((resolve, reject) => {
@@ -220,7 +249,9 @@ async function handleMerge(req, res) {
 const DRAW_FFMPEG_PATH = path.join(__dirname, 'ffmpeg-draw');
 const filmFfmpegPath = fs.existsSync(DRAW_FFMPEG_PATH) ? DRAW_FFMPEG_PATH : null;
 console.log('[startup] ffmpeg-draw:', filmFfmpegPath ? 'found ✓' : 'NOT found ✗ (film will fallback to concat)');
-console.log('[startup] font file:', fs.existsSync(FONT_PATH) ? 'found ✓' : 'NOT found ✗');
+console.log('[startup] font DejaVu:', fs.existsSync(FONT_PATH)     ? 'found ✓' : 'NOT found ✗');
+console.log('[startup] font Playfair:', fs.existsSync(PLAYFAIR_FONT) ? 'found ✓' : 'NOT found ✗ (will use DejaVu)');
+console.log('[startup] font Josefin:', fs.existsSync(JOSEFIN_FONT)  ? 'found ✓' : 'NOT found ✗ (will use DejaVu)');
 
 // ── 主伺服器 ──
 http.createServer((req, res) => {
