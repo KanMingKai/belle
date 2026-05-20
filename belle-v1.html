@@ -1306,7 +1306,7 @@ body {
       <div class="grid-hdr">
         <div class="grid-hdr-label">所有影片</div>
         <div class="grid-hdr-count" id="gridCount">0 部</div>
-        <button id="dlTodayBtn" onclick="downloadTodayVids(this)" style="margin-left:auto;padding:4px 12px;border-radius:16px;border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">下載今日</button>
+        <button id="dlTodayBtn" onclick="openVlogSheet('',this)" style="margin-left:auto;padding:4px 12px;border-radius:16px;border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">下載今日</button>
       </div>
       <div class="vids-grid" id="vidsGrid">
         <div class="vids-empty" style="grid-column:1/-1">
@@ -1557,7 +1557,7 @@ body {
         placeholder="膠卷頂部文字（選填，不支援 emoji）">
     </div>
     <div class="sheet-options">
-      <div class="sheet-option" onclick="downloadFavVids()">
+      <div class="sheet-option" onclick="_doVlogDl()">
         <div class="opt-ico-wrap" style="background:linear-gradient(135deg,#a48977,#7a5c4e)">⬇</div>
         <div>
           <div class="opt-title">下載到 Google Drive</div>
@@ -2184,7 +2184,7 @@ function renderGrid() {
       const div = document.createElement('div');
       div.className = 'vids-date-divider';
       div.innerHTML = `<span>${label}</span>` +
-        `<button class="vids-date-dl-btn" onclick="downloadDateVids('${dateStr}',this)">下載</button>`;
+        `<button class="vids-date-dl-btn" onclick="openVlogSheet('${dateStr}',this)">下載</button>`;
       grid.appendChild(div);
       lastLabel = label;
     }
@@ -3528,15 +3528,28 @@ async function downloadTodayVids(btn) {
   await downloadDateVids(today, btn);
 }
 
-// ── Vlog 收藏下載 ──
-function openVlogSheet() {
-  const gm = (document.getElementById('favFeatGm')?.textContent || 'Good Morning')
-    .replace(/[^\x00-\x7F]/g, '').trim();
-  document.getElementById('vlogGreetingInput').value = gm;
+// ── Vlog Sheet（收藏 & 日期共用）──
+// dateStr: 'YYYY-MM-DD' → 日期下載；'' or undefined → 收藏下載
+var _vlogCtx = null;
+
+function openVlogSheet(dateStr, triggerBtn) {
+  const isDate = !!dateStr;
+  _vlogCtx = isDate
+    ? { type: 'date', dateStr, triggerBtn }
+    : { type: 'favs', triggerBtn: document.getElementById('dlFavBtn') };
+
+  // 預填問候語
+  const gm = isDate
+    ? slotGreeting(dateStr + '_' + String(new Date().getHours()).padStart(2,'0') + '-00')
+    : (document.getElementById('favFeatGm')?.textContent || 'Good Morning');
+  document.getElementById('vlogGreetingInput').value =
+    (gm || '').replace(/[^\x00-\x7F]/g, '').trim();
+
+  // 預設 concat
   document.querySelectorAll('.vlog-layout-opt').forEach(el =>
     el.classList.toggle('selected', el.dataset.layout === 'concat'));
   _updateVlogDesc();
-  document.getElementById('vlogGreetingWrap').style.display = '';
+  document.getElementById('vlogGreetingWrap').style.display = 'none';
   document.getElementById('vlogBackdrop').classList.add('open');
   document.getElementById('vlogSheet').classList.add('open');
 }
@@ -3546,12 +3559,76 @@ function closeVlogSheet() {
   document.getElementById('vlogSheet').classList.remove('open');
 }
 
+async function _doVlogDl() {
+  if (!_vlogCtx) return;
+  if (_vlogCtx.type === 'date') {
+    const layout   = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
+    const greeting = document.getElementById('vlogGreetingInput').value.trim();
+    const { dateStr, triggerBtn } = _vlogCtx;
+    closeVlogSheet();
+    await _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn);
+  } else {
+    await downloadFavVids();
+  }
+}
+
+async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
+  if (_dlBusy) { toast('處理中，請稍候…'); return; }
+
+  let vids = (myVids || [])
+    .filter(v => v.time_slot && v.time_slot.startsWith(dateStr))
+    .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+
+  if (layout === 'grid4') vids = vids.slice(0, 4);
+  if (!vids.length) { toast('該日沒有影片'); return; }
+
+  const btn       = triggerBtn || document.getElementById('dlTodayBtn');
+  const origLabel = btn ? btn.textContent : '';
+  _dlBusy = true;
+  if (btn) { btn.disabled = true; btn.textContent = '授權中…'; }
+
+  try {
+    toast('請授權 Google Drive…');
+    const token = await getGToken();
+
+    const segments = vids.map(v => ({
+      url:      qualifyUrl(v.url).replace(/,f_auto/g,'').replace(/f_auto,/g,''),
+      greeting: slotGreeting(v.time_slot),
+      title:    (v.title || '').replace(/[^\x00-\x7F]/g,'').trim()
+    }));
+
+    const dateLabel = dateStr.replaceAll('-', '.');
+    if (btn) btn.textContent = '合併中…';
+    toast('伺服器處理影片中…');
+    const res = await fetch(MERGE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ segments, layout, date: dateLabel, greeting })
+    });
+    if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || 'HTTP ' + res.status);
+
+    const blob = await res.blob();
+    if (btn) btn.textContent = '上傳中…';
+    toast('上傳至 Google Drive…');
+    const file = await uploadToGDrive(blob, 'belle-' + dateStr + '.mp4', token);
+    toast('✓ 已存至 Google Drive：' + file.name);
+    if (btn) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = origLabel; }, 3000); }
+    return;
+  } catch (e) {
+    toast('✗ 失敗：' + e.message);
+    console.error('[downloadDate]', e);
+  } finally {
+    _dlBusy = false;
+    if (btn && btn.textContent !== '✓') btn.textContent = origLabel;
+    if (btn) btn.disabled = false;
+  }
+}
+
 function selectVlogLayout(el) {
   document.querySelectorAll('.vlog-layout-opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
-  const layout = el.dataset.layout;
   document.getElementById('vlogGreetingWrap').style.display =
-    layout === 'film' ? '' : 'none';
+    el.dataset.layout === 'film' ? '' : 'none';
   _updateVlogDesc();
 }
 
