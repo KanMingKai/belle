@@ -364,6 +364,29 @@ body {
 }
 .grid-hdr-label { font-size:9px;letter-spacing:3px;color:rgba(164,137,119,0.45);text-transform:uppercase; }
 .grid-hdr-count { font-size:9px;color:rgba(164,137,119,0.3); }
+/* ── DOWNLOAD MENU ── */
+.dl-wrap { position:relative;margin-left:auto; }
+.dl-btn {
+  padding:4px 12px;border-radius:16px;
+  border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);
+  font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;
+}
+.dl-btn:disabled { opacity:0.5;cursor:default; }
+.dl-menu {
+  position:absolute;top:calc(100% + 6px);right:0;z-index:100;
+  background:rgba(20,15,12,0.98);
+  border:1px solid rgba(212,184,150,0.3);
+  border-radius:10px;min-width:160px;overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,0.55);
+}
+.dl-menu-item {
+  padding:10px 14px;font-size:12px;color:var(--cream);
+  cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;
+  white-space:nowrap;
+}
+.dl-menu-item + .dl-menu-item { border-top:1px solid rgba(212,184,150,0.1); }
+.dl-menu-item:hover { background:rgba(212,184,150,0.1);color:var(--sand); }
+.dl-menu-sub { font-size:9px;color:rgba(212,184,150,0.45);margin-top:2px;letter-spacing:1px; }
 /* ── VIDEO GRID ── */
 .my-vid-scroll {
   flex:1;min-height:0;overflow-y:auto;
@@ -1270,9 +1293,22 @@ body {
       <div class="grid-hdr">
         <div class="grid-hdr-label">所有影片</div>
         <div class="grid-hdr-count" id="gridCount">0 部</div>
-        <div style="margin-left:auto;display:flex;gap:6px">
-          <button id="dlGrid4Btn" onclick="downloadGrid4(this)" style="padding:4px 12px;border-radius:16px;border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">四格</button>
-          <button id="dlTodayBtn" onclick="downloadTodayVids(this)" style="padding:4px 12px;border-radius:16px;border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">下載今日</button>
+        <div class="dl-wrap">
+          <button id="dlBtn" class="dl-btn" onclick="toggleDlMenu(event)">下載 ▾</button>
+          <div id="dlMenu" class="dl-menu" style="display:none">
+            <div class="dl-menu-item" onclick="dlMenuPick('today')">
+              <div>順序合併</div>
+              <div class="dl-menu-sub">今日影片</div>
+            </div>
+            <div class="dl-menu-item" onclick="dlMenuPick('grid4')">
+              <div>四格</div>
+              <div class="dl-menu-sub">全部影片 2×2</div>
+            </div>
+            <div class="dl-menu-item" onclick="dlMenuPick('grid9')">
+              <div>九格</div>
+              <div class="dl-menu-sub">全部影片 3×3</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="vids-grid" id="vidsGrid">
@@ -3373,35 +3409,52 @@ async function uploadToGDrive(blob, filename, accessToken) {
   return res.json();
 }
 
-async function downloadTodayVids(btn) {
+// ── 下載選單控制 ──
+function toggleDlMenu(e) {
+  if (e) e.stopPropagation();
   if (_dlBusy) { toast('處理中，請稍候…'); return; }
+  const menu = document.getElementById('dlMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('dlMenu');
+  const btn  = document.getElementById('dlBtn');
+  if (!menu || menu.style.display !== 'block') return;
+  if (menu.contains(e.target) || e.target === btn) return;
+  menu.style.display = 'none';
+});
 
-  const today = new Date().toISOString().slice(0, 10);
-  const vids = myVids
-    .filter(v => v.time_slot && v.time_slot.startsWith(today))
-    .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+function dlMenuPick(action) {
+  document.getElementById('dlMenu').style.display = 'none';
+  const btn = document.getElementById('dlBtn');
+  if (action === 'today') downloadTodayVids(btn);
+  else if (action === 'grid4') downloadGridN(btn, 4);
+  else if (action === 'grid9') downloadGridN(btn, 9);
+}
 
-  if (!vids.length) { toast('今天還沒有影片'); return; }
+// ── 共用：執行下載流程 ──
+async function runDownload(btn, opts) {
+  // opts: { urls, layout?, filenamePrefix, toastMerge }
+  if (_dlBusy) { toast('處理中，請稍候…'); return; }
+  if (!opts.urls.length) { toast('沒有可下載的影片'); return; }
 
   _dlBusy = true;
   btn.disabled = true;
+  const origLabel = btn.textContent;
   btn.textContent = '授權中…';
 
   try {
-    // 先取得 Google token（必須在 user gesture 的同步脈絡下觸發 popup）
     toast('請授權 Google Drive…');
     const token = await getGToken();
 
-    const urls = vids.map(v =>
-      qualifyUrl(v.url).replace(/,f_auto/g, '').replace(/f_auto,/g, '')
-    );
-
     btn.textContent = '合併中…';
-    toast('伺服器合併影片中…');
+    toast(opts.toastMerge || '伺服器合併影片中…');
+    const body = { urls: opts.urls };
+    if (opts.layout) body.layout = opts.layout;
     const res = await fetch(MERGE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls })
+      body: JSON.stringify(body)
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'HTTP ' + res.status }));
@@ -3409,7 +3462,8 @@ async function downloadTodayVids(btn) {
     }
 
     const blob = await res.blob();
-    const filename = 'belle-' + today + '.mp4';
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = opts.filenamePrefix + '-' + today + '.mp4';
 
     toast('上傳至 Google Drive…');
     btn.textContent = '上傳中…';
@@ -3423,62 +3477,38 @@ async function downloadTodayVids(btn) {
   } finally {
     _dlBusy = false;
     btn.disabled = false;
-    btn.textContent = '下載今日';
+    btn.textContent = origLabel;
   }
 }
 
-// ── 四格下載（全部影片，不足補頭） ──
-async function downloadGrid4(btn) {
-  if (_dlBusy) { toast('處理中，請稍候…'); return; }
+// ── 順序合併（今日） ──
+async function downloadTodayVids(btn) {
+  const today = new Date().toISOString().slice(0, 10);
+  const vids = myVids
+    .filter(v => v.time_slot && v.time_slot.startsWith(today))
+    .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+  if (!vids.length) { toast('今天還沒有影片'); return; }
+  const urls = vids.map(v =>
+    qualifyUrl(v.url).replace(/,f_auto/g, '').replace(/f_auto,/g, '')
+  );
+  return runDownload(btn, { urls, filenamePrefix: 'belle' });
+}
+
+// ── 格子下載（全部影片，不足從頭補） ──
+async function downloadGridN(btn, n) {
   if (!myVids || !myVids.length) { toast('還沒有影片'); return; }
-
-  _dlBusy = true;
-  btn.disabled = true;
-  btn.textContent = '授權中…';
-
-  try {
-    toast('請授權 Google Drive…');
-    const token = await getGToken();
-
-    // 取全部影片 URL，按時間排序
-    const sorted = [...myVids].sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
-    let urls = sorted.map(v => qualifyUrl(v.url).replace(/,f_auto/g, '').replace(/f_auto,/g, ''));
-
-    // 補到 4 的倍數，從頭循環
-    const orig = urls.length;
-    let i = 0;
-    while (urls.length % 4 !== 0) { urls.push(urls[i % orig]); i++; }
-
-    btn.textContent = '合併中…';
-    toast('伺服器處理四格影片中…（可能需要一點時間）');
-    const res = await fetch(MERGE_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls, layout: 'grid4' })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'HTTP ' + res.status }));
-      throw new Error(err.error || 'HTTP ' + res.status);
-    }
-
-    const blob = await res.blob();
-    const today = new Date().toISOString().slice(0, 10);
-    const filename = 'belle-grid4-' + today + '.mp4';
-
-    toast('上傳至 Google Drive…');
-    btn.textContent = '上傳中…';
-    const file = await uploadToGDrive(blob, filename, token);
-
-    toast('✓ 已存至 Google Drive：' + file.name);
-    console.log('[gdrive grid4] 上傳成功', file.webViewLink);
-  } catch (e) {
-    toast('✗ 失敗：' + e.message);
-    console.error('[grid4]', e);
-  } finally {
-    _dlBusy = false;
-    btn.disabled = false;
-    btn.textContent = '四格';
-  }
+  const sorted = [...myVids].sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+  let urls = sorted.map(v => qualifyUrl(v.url).replace(/,f_auto/g, '').replace(/f_auto,/g, ''));
+  // 補到 n 的倍數，從頭循環
+  const orig = urls.length;
+  let i = 0;
+  while (urls.length % n !== 0) { urls.push(urls[i % orig]); i++; }
+  return runDownload(btn, {
+    urls,
+    layout:         'grid' + n,
+    filenamePrefix: 'belle-grid' + n,
+    toastMerge:     '伺服器處理 ' + (n === 4 ? '四' : '九') + '格影片中…（可能需要一點時間）'
+  });
 }
 
 // ── Toasts ──

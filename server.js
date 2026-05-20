@@ -50,16 +50,33 @@ function runFfmpeg(args) {
   });
 }
 
-// ── 四格合成：4 支影片 → 2×2 grid ──
-// 每格縮放至 540×960（9:16），輸出 1080×1920
-async function makeGrid4Round(paths, outPath) {
-  const W = 540, H = 960;
+// ── 通用格子合成：cols × rows 支影片 → 1080×1920 ──
+// 每格尺寸 = 1080/cols × 1920/rows
+async function makeGridRound(paths, cols, rows, outPath) {
+  const N = cols * rows;
+  if (paths.length !== N) {
+    throw new Error('需要 ' + N + ' 支影片，實際 ' + paths.length);
+  }
+  const W = Math.floor(1080 / cols);
+  const H = Math.floor(1920 / rows);
+
   const scaleFilters = paths.map((_, i) =>
     `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
     `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v${i}]`
   ).join(';');
+
+  // xstack layout: 每格的左上角座標，用 w0/h0 表示（每格等寬等高）
+  const layoutCells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c === 0 ? '0' : (c === 1 ? 'w0' : c + '*w0');
+      const y = r === 0 ? '0' : (r === 1 ? 'h0' : r + '*h0');
+      layoutCells.push(x + '_' + y);
+    }
+  }
+  const inputRefs = paths.map((_, i) => '[v' + i + ']').join('');
   const stackFilter =
-    `[v0][v1][v2][v3]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[vout]`;
+    inputRefs + 'xstack=inputs=' + N + ':layout=' + layoutCells.join('|') + '[vout]';
 
   const inputArgs = [];
   paths.forEach(p => { inputArgs.push('-i', p); });
@@ -112,25 +129,30 @@ async function handleMerge(req, res) {
       const outPath = path.join(tmpDir, 'merged.mp4');
       tmpFiles.push(outPath);
 
-      if (layout === 'grid4') {
-        // ── 四格模式 ──
-        // 每 4 支合成一個 round，最後 concat 所有 rounds
+      const gridMatch = layout && layout.match(/^grid(\d+)$/);
+      if (gridMatch) {
+        // ── 格子模式（grid4 = 2×2、grid9 = 3×3） ──
+        const N = parseInt(gridMatch[1], 10);
+        let cols, rows;
+        if (N === 4) { cols = 2; rows = 2; }
+        else if (N === 9) { cols = 3; rows = 3; }
+        else throw new Error('不支援的 grid 大小：' + N);
+
+        // 每 N 支合成一個 round，最後 concat 所有 rounds
         const roundPaths = [];
-        for (let i = 0; i < vidPaths.length; i += 4) {
-          const group    = vidPaths.slice(i, i + 4);
-          const roundOut = path.join(tmpDir, 'round' + (i / 4) + '.mp4');
-          console.log('四格合成 round ' + (i / 4 + 1) + '，clips:', group.length);
-          await makeGrid4Round(group, roundOut);
+        for (let i = 0; i < vidPaths.length; i += N) {
+          const group    = vidPaths.slice(i, i + N);
+          const roundOut = path.join(tmpDir, 'round' + (i / N) + '.mp4');
+          console.log(N + '格合成 round ' + (i / N + 1) + '，clips:', group.length);
+          await makeGridRound(group, cols, rows, roundOut);
           roundPaths.push(roundOut);
           tmpFiles.push(roundOut);
         }
 
         if (roundPaths.length === 1) {
-          // 只有一個 round，直接用
           fs.renameSync(roundPaths[0], outPath);
-          tmpFiles.pop(); // outPath 已是 roundPaths[0]，避免重複清理
+          tmpFiles.pop();
         } else {
-          // concat 所有 rounds（編碼一致，可直接 copy）
           const listPath = path.join(tmpDir, 'rounds.txt');
           fs.writeFileSync(listPath, roundPaths.map(p => "file '" + p.replace(/\\/g, '/') + "'").join('\n'));
           tmpFiles.push(listPath);
