@@ -205,6 +205,13 @@ async function handleMerge(req, res) {
   });
 }
 
+// ── 啟動診斷：確認 drawtext filter 是否可用 ──
+execFile(ffmpegPath, ['-filters'], { timeout: 5000 }, (_err, stdout) => {
+  const ok = (stdout || '').includes('drawtext');
+  console.log('[startup] drawtext filter:', ok ? 'available ✓' : 'NOT available ✗');
+  console.log('[startup] font file:', require('fs').existsSync(FONT_PATH) ? 'found ✓' : 'NOT found ✗');
+});
+
 // ── 主伺服器 ──
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
