@@ -108,9 +108,9 @@ async function handleMerge(req, res) {
           const labelPath = path.join(tmpDir, 'v' + i + '_t.mp4');
           tmpFiles.push(labelPath);
 
-          // Gradient: 5 stacked drawboxes simulating linear-gradient(to top, black@0.7 → transparent)
-          // Heights cover bottom 70px; each layer slightly less opaque toward top
+          // format=rgba first so drawbox/drawtext alpha blending works on yuv420p input
           const gradient = [
+            'format=rgba',
             'drawbox=x=0:y=ih-70:w=iw:h=14:color=black@0.56:t=9999',
             'drawbox=x=0:y=ih-56:w=iw:h=14:color=black@0.42:t=9999',
             'drawbox=x=0:y=ih-42:w=iw:h=14:color=black@0.28:t=9999',
@@ -134,6 +134,9 @@ async function handleMerge(req, res) {
             "drawtext=fontfile='" + tagFont + "':text='" + escapeFfmpegText(segTitle.toUpperCase()) +
             "':x=26:y=ih-26:fontsize=9:fontcolor=white@0.55"
           );
+
+          // Convert back to yuv420p for libx264 encoder
+          f.push('format=yuv420p');
 
           try {
             await new Promise((resolve, reject) => {
