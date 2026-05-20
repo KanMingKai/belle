@@ -404,8 +404,18 @@ body {
   padding:14px 6px 6px;
   font-size:9px;letter-spacing:3px;color:rgba(212,184,150,0.4);
   text-transform:uppercase;
+  display:flex;align-items:center;justify-content:space-between;
 }
 .vids-date-divider:first-child { padding-top:6px; }
+.vids-date-dl-btn {
+  font-size:10px;letter-spacing:0.3px;text-transform:none;
+  padding:3px 10px;border-radius:14px;cursor:pointer;
+  border:1px solid rgba(164,137,119,0.35);
+  background:transparent;color:rgba(212,184,150,0.6);
+  font-family:'DM Sans',sans-serif;transition:color 0.2s,border-color 0.2s;
+}
+.vids-date-dl-btn:hover { color:var(--sand);border-color:var(--brown); }
+.vids-date-dl-btn:disabled { opacity:0.4;cursor:default; }
 .vids-empty {
   grid-column:1/-1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:60px 20px;text-align:center;
@@ -2168,11 +2178,13 @@ function renderGrid() {
   grid.innerHTML = '';
   let lastLabel = null;
   myVids.forEach((v) => {
+    const dateStr = v.time_slot ? v.time_slot.split('_')[0] : '';
     const label = _vidDateLabel(v.time_slot);
     if (label !== lastLabel) {
       const div = document.createElement('div');
       div.className = 'vids-date-divider';
-      div.textContent = label;
+      div.innerHTML = `<span>${label}</span>` +
+        `<button class="vids-date-dl-btn" onclick="downloadDateVids('${dateStr}',this)">下載</button>`;
       grid.appendChild(div);
       lastLabel = label;
     }
@@ -3458,22 +3470,21 @@ async function uploadToGDrive(blob, filename, accessToken) {
   return res.json();
 }
 
-async function downloadTodayVids(btn) {
+async function downloadDateVids(dateStr, btn) {
   if (_dlBusy) { toast('處理中，請稍候…'); return; }
 
-  const today = new Date().toISOString().slice(0, 10);
   const vids = myVids
-    .filter(v => v.time_slot && v.time_slot.startsWith(today))
+    .filter(v => v.time_slot && v.time_slot.startsWith(dateStr))
     .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
 
-  if (!vids.length) { toast('今天還沒有影片'); return; }
+  if (!vids.length) { toast('該日沒有影片'); return; }
 
+  const origLabel = btn.textContent;
   _dlBusy = true;
   btn.disabled = true;
   btn.textContent = '授權中…';
 
   try {
-    // 先取得 Google token（必須在 user gesture 的同步脈絡下觸發 popup）
     toast('請授權 Google Drive…');
     const token = await getGToken();
 
@@ -3494,22 +3505,27 @@ async function downloadTodayVids(btn) {
     }
 
     const blob = await res.blob();
-    const filename = 'belle-' + today + '.mp4';
-
-    toast('上傳至 Google Drive…');
     btn.textContent = '上傳中…';
-    const file = await uploadToGDrive(blob, filename, token);
+    toast('上傳至 Google Drive…');
+    const file = await uploadToGDrive(blob, 'belle-' + dateStr + '.mp4', token);
 
     toast('✓ 已存至 Google Drive：' + file.name);
-    console.log('[gdrive] 上傳成功', file.webViewLink);
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = origLabel; }, 3000);
+    return;
   } catch (e) {
     toast('✗ 失敗：' + e.message);
     console.error('[download]', e);
   } finally {
     _dlBusy = false;
     btn.disabled = false;
-    btn.textContent = '下載今日';
+    if (btn.textContent !== '✓') btn.textContent = origLabel;
   }
+}
+
+async function downloadTodayVids(btn) {
+  const today = new Date().toISOString().slice(0, 10);
+  await downloadDateVids(today, btn);
 }
 
 // ── Vlog 收藏下載 ──
