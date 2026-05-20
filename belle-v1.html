@@ -1537,7 +1537,7 @@ body {
     </div>
     <div class="vlog-greeting-wrap" id="vlogGreetingWrap">
       <input id="vlogGreetingInput" class="vlog-greeting-input" type="text"
-        placeholder="問候語（膠卷模式顯示，不支援 emoji）">
+        placeholder="膠卷頂部文字（選填，不支援 emoji）">
     </div>
     <div class="sheet-options">
       <div class="sheet-option" onclick="downloadFavVids()">
@@ -3517,23 +3517,36 @@ function _updateVlogDesc() {
 
 async function downloadFavVids() {
   if (_dlBusy) { toast('處理中，請稍候…'); return; }
-  const layout   = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
-  const greeting = document.getElementById('vlogGreetingInput').value.trim();
+  const layout = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
 
-  let urls = [];
-  if (layout === 'grid4') {
-    urls = (favData || []).slice(0, 4)
-      .map(f => f.my_video_url || f.partner_video_url)
-      .filter(Boolean)
-      .map(u => qualifyUrl(u).replace(/,f_auto/g, '').replace(/f_auto,/g, ''));
-  } else {
-    urls = [...(favData || [])]
-      .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''))
-      .flatMap(f => [f.partner_video_url, f.my_video_url].filter(Boolean))
-      .map(u => qualifyUrl(u).replace(/,f_auto/g, '').replace(/f_auto,/g, ''));
+  function _buildSeg(url, timeSlot, title) {
+    return {
+      url: qualifyUrl(url).replace(/,f_auto/g, '').replace(/f_auto,/g, ''),
+      greeting: slotGreeting(timeSlot),
+      title: (title || '').replace(/[^\x00-\x7F]/g, '').trim()
+    };
   }
 
-  if (!urls.length) { toast('收藏清單是空的'); return; }
+  let segments = [];
+  if (layout === 'grid4') {
+    segments = (favData || []).slice(0, 4).map(f => {
+      const myVid = (myVids || []).find(v => v.id === f.my_video_id);
+      const url   = f.my_video_url || f.partner_video_url;
+      return url ? _buildSeg(url, f.time_slot, myVid?.title) : null;
+    }).filter(Boolean);
+  } else {
+    segments = [...(favData || [])]
+      .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''))
+      .flatMap(f => {
+        const myVid = (myVids || []).find(v => v.id === f.my_video_id);
+        const segs  = [];
+        if (f.partner_video_url) segs.push(_buildSeg(f.partner_video_url, f.time_slot, ''));
+        if (f.my_video_url)      segs.push(_buildSeg(f.my_video_url, f.time_slot, myVid?.title));
+        return segs;
+      });
+  }
+
+  if (!segments.length) { toast('收藏清單是空的'); return; }
   closeVlogSheet();
 
   const btn = document.getElementById('dlFavBtn');
@@ -3545,28 +3558,26 @@ async function downloadFavVids() {
     toast('請授權 Google Drive…');
     const token = await getGToken();
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today     = new Date().toISOString().slice(0, 10);
     const dateLabel = today.replaceAll('-', '.');
 
-    btn.textContent = layout === 'film' ? '合併中（膠卷）…' : '合併中…';
+    btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
     const res = await fetch(MERGE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls, layout, date: dateLabel, greeting })
+      body: JSON.stringify({ segments, layout, date: dateLabel })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'HTTP ' + res.status }));
       throw new Error(err.error || 'HTTP ' + res.status);
     }
 
-    const blob = await res.blob();
+    const blob     = await res.blob();
     const filename = 'belle-favs-' + today + '.mp4';
-
     toast('上傳至 Google Drive…');
     btn.textContent = '上傳中…';
     const file = await uploadToGDrive(blob, filename, token);
-
     toast('✓ 已存至 Google Drive：' + file.name);
     console.log('[gdrive] 收藏下載成功', file.webViewLink);
   } catch (e) {

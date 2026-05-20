@@ -47,42 +47,84 @@ function escapeFfmpegText(str) {
 }
 
 // ── 路由：POST /merge ──
-// Accepts: { urls, layout?, date?, greeting? }
+// Accepts: { segments:[{url,greeting,title}], layout?, date? }
+//   or legacy: { urls:[...], layout?, date?, greeting? }
 // layout: 'concat' (default) | 'film' | 'grid4'
 async function handleMerge(req, res) {
   let body = '';
   req.on('data', chunk => { body += chunk; });
   req.on('end', async () => {
-    let urls, layout, date, greeting;
+    let segments, layout, date, filmGreeting;
     try {
       const parsed = JSON.parse(body);
-      urls     = parsed.urls;
-      layout   = parsed.layout   || 'concat';
-      date     = (parsed.date    || '').replace(/[^\x00-\x7F]/g, '').trim();
-      greeting = (parsed.greeting|| '').replace(/[^\x00-\x7F]/g, '').trim();
-      if (!Array.isArray(urls) || urls.length === 0) throw new Error();
+      layout       = parsed.layout  || 'concat';
+      date         = (parsed.date   || '').replace(/[^\x00-\x7F]/g, '').trim();
+      filmGreeting = (parsed.greeting|| '').replace(/[^\x00-\x7F]/g, '').trim();
+      // 支援新版 segments 格式 及舊版 urls 格式
+      if (Array.isArray(parsed.segments) && parsed.segments.length) {
+        segments = parsed.segments;
+      } else if (Array.isArray(parsed.urls) && parsed.urls.length) {
+        segments = parsed.urls.map(u => ({ url: u }));
+      } else {
+        throw new Error();
+      }
     } catch (_) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: '需要 { urls: [...] }' }));
+      res.end(JSON.stringify({ error: '需要 { segments:[{url,...}] } 或 { urls:[...] }' }));
       return;
     }
 
-    if (layout === 'grid4') urls = urls.slice(0, 4);
+    if (layout === 'grid4') segments = segments.slice(0, 4);
 
     const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'igmerge-'));
     const tmpFiles = [];
 
     try {
-      // 1. 下載每部影片
+      // ── Step 1: 下載所有影片 ──
       const vidPaths = [];
-      for (let i = 0; i < urls.length; i++) {
+      for (let i = 0; i < segments.length; i++) {
         const dest = path.join(tmpDir, 'v' + i + '.mp4');
-        console.log('下載 ' + (i + 1) + '/' + urls.length + ':', urls[i]);
-        await downloadFile(urls[i], dest);
+        console.log('下載 ' + (i + 1) + '/' + segments.length + ':', segments[i].url);
+        await downloadFile(segments[i].url, dest);
         vidPaths.push(dest);
         tmpFiles.push(dest);
       }
 
+      // ── Step 2: 每段燒入問候語 + 標題（左下角）──
+      const canLabel = filmFfmpegPath && fs.existsSync(FONT_PATH);
+      if (canLabel) {
+        const font = escapeFfmpegText(FONT_PATH);
+        for (let i = 0; i < vidPaths.length; i++) {
+          const seg     = segments[i] || {};
+          const segGm   = (seg.greeting || '').replace(/[^\x00-\x7F]/g, '').trim();
+          const segTitle= (seg.title    || '').replace(/[^\x00-\x7F]/g, '').trim();
+          if (!segGm && !segTitle) continue;
+
+          const labelPath = path.join(tmpDir, 'v' + i + '_t.mp4');
+          tmpFiles.push(labelPath);
+          const f = [];
+          if (segGm)    f.push("drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(segGm)    + "':x=16:y=h-text_h-34:fontsize=18:fontcolor=white@0.9:shadowcolor=black@0.6:shadowx=1:shadowy=1");
+          if (segTitle) f.push("drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(segTitle) + "':x=16:y=h-text_h-10:fontsize=13:fontcolor=white@0.75:shadowcolor=black@0.4:shadowx=1:shadowy=1");
+
+          try {
+            await new Promise((resolve, reject) => {
+              execFile(filmFfmpegPath, [
+                '-y', '-i', vidPaths[i],
+                '-vf', f.join(','),
+                '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
+                '-c:a', 'aac', '-b:a', '128k',
+                labelPath
+              ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
+            });
+            vidPaths[i] = labelPath;
+            console.log('[label] segment', i, 'done');
+          } catch (e) {
+            console.warn('[label] segment', i, 'failed, using original:', e.message.slice(0, 80));
+          }
+        }
+      }
+
+      // ── Step 3: 套用版型 ──
       const outPath = path.join(tmpDir, 'merged.mp4');
       tmpFiles.push(outPath);
 
@@ -94,101 +136,67 @@ async function handleMerge(req, res) {
             '-y',
             '-i', vidPaths[0], '-i', vidPaths[1], '-i', vidPaths[2], '-i', vidPaths[3],
             '-filter_complex',
-            // scale to fit 480×480 cell preserving AR, pad black to fill
             '[0:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[tl];' +
             '[1:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[tr];' +
             '[2:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[bl];' +
             '[3:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[br];' +
             '[tl][tr]hstack=inputs=2[top];[bl][br]hstack=inputs=2[bot];' +
             '[top][bot]vstack=inputs=2[v]',
-            '-map', '[v]',
-            '-an',
-            '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
-            '-shortest',
+            '-map', '[v]', '-an',
+            '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast', '-shortest',
             outPath
-          ], (err, _out, stderr) => {
-            if (err) reject(new Error(stderr)); else resolve();
-          });
+          ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
         });
 
       } else {
-        // 建立 concat 清單
         const listPath = path.join(tmpDir, 'list.txt');
         fs.writeFileSync(listPath, vidPaths.map(p => "file '" + p.replace(/\\/g, '/') + "'").join('\n'));
         tmpFiles.push(listPath);
 
-        const hasFont = fs.existsSync(FONT_PATH);
-        if (layout === 'film' && filmFfmpegPath && hasFont && (date || greeting)) {
-          // Pass 1: fast concat
+        if (layout === 'film' && filmFfmpegPath && (date || filmGreeting)) {
+          // film: concat labeled segments → Pass 2 加日期 + belle
           const concatPath = path.join(tmpDir, 'concat.mp4');
           tmpFiles.push(concatPath);
           await new Promise((resolve, reject) => {
             execFile(ffmpegPath, [
               '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', concatPath
-            ], (err, _out, stderr) => {
-              if (err) reject(new Error(stderr)); else resolve();
-            });
+            ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
           });
 
-          // Build drawtext filter
           const font = escapeFfmpegText(FONT_PATH);
           const filters = [];
-          if (date) {
-            filters.push(
-              "drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(date) + "'" +
-              ':x=(w-text_w)/2:y=30:fontsize=28:fontcolor=white@0.85' +
-              ':shadowcolor=black@0.5:shadowx=1:shadowy=1'
-            );
-          }
-          if (greeting) {
-            filters.push(
-              "drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(greeting) + "'" +
-              ':x=(w-text_w)/2:y=h-64:fontsize=22:fontcolor=white@0.7' +
-              ':shadowcolor=black@0.4:shadowx=1:shadowy=1'
-            );
-          }
-          filters.push(
-            "drawtext=fontfile='" + font + "':text='belle'" +
-            ':x=w-text_w-20:y=h-text_h-20:fontsize=16:fontcolor=white@0.4'
-          );
+          if (date) filters.push("drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(date) + "':x=(w-text_w)/2:y=30:fontsize=28:fontcolor=white@0.85:shadowcolor=black@0.5:shadowx=1:shadowy=1");
+          if (filmGreeting) filters.push("drawtext=fontfile='" + font + "':text='" + escapeFfmpegText(filmGreeting) + "':x=(w-text_w)/2:y=h-64:fontsize=22:fontcolor=white@0.7:shadowcolor=black@0.4:shadowx=1:shadowy=1");
+          filters.push("drawtext=fontfile='" + font + "':text='belle':x=w-text_w-20:y=h-text_h-20:fontsize=16:fontcolor=white@0.4");
 
-          // Pass 2: encode with text overlay (fallback to plain concat if drawtext unavailable)
           await new Promise((resolve, reject) => {
             execFile(filmFfmpegPath, [
               '-y', '-i', concatPath,
               '-vf', filters.join(','),
               '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
-              '-c:a', 'aac', '-b:a', '128k',
-              outPath
-            ], (err, _out, stderr) => {
+              '-c:a', 'aac', '-b:a', '128k', outPath
+            ], (err, _o, stderr) => {
               if (err) {
                 const msg = stderr || '';
                 if (msg.includes('No such filter') || msg.includes('Filter not found')) {
-                  console.warn('[film] drawtext not available, falling back to plain concat');
-                  try { fs.copyFileSync(concatPath, outPath); resolve(); }
-                  catch (e2) { reject(e2); }
-                } else {
-                  reject(new Error(msg));
-                }
-              } else {
-                resolve();
-              }
+                  console.warn('[film] drawtext fallback to plain concat');
+                  try { fs.copyFileSync(concatPath, outPath); resolve(); } catch (e2) { reject(e2); }
+                } else { reject(new Error(msg)); }
+              } else { resolve(); }
             });
           });
 
         } else {
-          // 原版 concat（layout='concat' 或字型不存在時 fallback）
+          // 原版 concat（含已標記的 vidPaths）
           await new Promise((resolve, reject) => {
             execFile(ffmpegPath, [
               '-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outPath
-            ], (err, _out, stderr) => {
-              if (err) reject(new Error(stderr)); else resolve();
-            });
+            ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
           });
         }
       }
 
-      // 回傳合併後的影片
+      // ── 回傳 ──
       const stat = fs.statSync(outPath);
       res.writeHead(200, {
         'Content-Type':        'video/mp4',
