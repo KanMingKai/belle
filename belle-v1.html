@@ -1890,6 +1890,11 @@ const GREETINGS = [
   'Good morning','Brunch time','Good afternoon','Teatime',
   'Late afternoon','Good evening','Relaxing time','Good night'
 ];
+function _fmtSlotTime(ts) {
+  const [d, t] = (ts || '').split('_');
+  const [h, m] = (t || '00-00').split('-');
+  return (d || '').replace(/-/g, '/') + ' ' + h + ':' + (m || '00');
+}
 function slotGreeting(timeSlot) {
   if (!timeSlot) return 'Good Morning';
   const hm = (timeSlot.split('_')[1] || '').split('-');
@@ -3594,7 +3599,7 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
     const segments = vids.map(v => ({
       url:      qualifyUrl(v.url).replace(/,f_auto/g,'').replace(/f_auto,/g,''),
       greeting: slotGreeting(v.time_slot),
-      title:    (v.title || '').replace(/[^\x00-\x7F]/g,'').trim()
+      title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
     }));
 
     const dateLabel = dateStr.replaceAll('-', '.');
@@ -3642,11 +3647,11 @@ async function downloadFavVids() {
   if (_dlBusy) { toast('處理中，請稍候…'); return; }
   const layout = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
 
-  function _buildSeg(url, timeSlot, title) {
+  function _buildSeg(url, timeSlot) {
     return {
       url: qualifyUrl(url).replace(/,f_auto/g, '').replace(/f_auto,/g, ''),
       greeting: slotGreeting(timeSlot),
-      title: (title || '').replace(/[^\x00-\x7F]/g, '').trim()
+      title: '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(timeSlot)
     };
   }
 
@@ -3655,7 +3660,7 @@ async function downloadFavVids() {
     segments = (favData || []).slice(0, 4).map(f => {
       const myVid = (myVids || []).find(v => v.id === f.my_video_id);
       const url   = f.my_video_url || f.partner_video_url;
-      return url ? _buildSeg(url, f.time_slot, myVid?.title) : null;
+      return url ? _buildSeg(url, f.time_slot) : null;
     }).filter(Boolean);
   } else {
     segments = [...(favData || [])]
@@ -3663,8 +3668,8 @@ async function downloadFavVids() {
       .flatMap(f => {
         const myVid = (myVids || []).find(v => v.id === f.my_video_id);
         const segs  = [];
-        if (f.partner_video_url) segs.push(_buildSeg(f.partner_video_url, f.time_slot, ''));
-        if (f.my_video_url)      segs.push(_buildSeg(f.my_video_url, f.time_slot, myVid?.title));
+        if (f.partner_video_url) segs.push(_buildSeg(f.partner_video_url, f.time_slot));
+        if (f.my_video_url)      segs.push(_buildSeg(f.my_video_url, f.time_slot));
         return segs;
       });
   }
