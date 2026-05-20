@@ -91,15 +91,15 @@ async function handleMerge(req, res) {
     const tmpFiles = [];
 
     try {
-      // ── Step 1: 下載所有影片 ──
-      const vidPaths = [];
-      for (let i = 0; i < segments.length; i++) {
-        const dest = path.join(tmpDir, 'v' + i + '.mp4');
-        console.log('下載 ' + (i + 1) + '/' + segments.length + ':', segments[i].url);
-        await downloadFile(segments[i].url, dest);
-        vidPaths.push(dest);
-        tmpFiles.push(dest);
-      }
+      // ── Step 1: 平行下載所有影片 ──
+      const vidPaths = segments.map((_, i) => path.join(tmpDir, 'v' + i + '.mp4'));
+      vidPaths.forEach(p => tmpFiles.push(p));
+      console.log('平行下載 ' + segments.length + ' 部…');
+      await Promise.all(segments.map((seg, i) =>
+        downloadFile(seg.url, vidPaths[i]).then(() =>
+          console.log('[下載完成] ' + (i + 1) + '/' + segments.length)
+        )
+      ));
 
       // ── Step 2: 每段燒入問候語 + 標題（txt.html 風格：漸層+白線+字型）──
       const canLabel = filmFfmpegPath && fs.existsSync(FONT_PATH);
