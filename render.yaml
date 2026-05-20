@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: belle-backend
+    env: node
+    buildCommand: apt-get install -y ffmpeg && npm install
+    startCommand: node server.js

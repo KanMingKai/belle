@@ -151,7 +151,7 @@ async function handleMerge(req, res) {
 
           // Pass 2: encode with text overlay (fallback to plain concat if drawtext unavailable)
           await new Promise((resolve, reject) => {
-            execFile(ffmpegPath, [
+            execFile(filmFfmpegPath, [
               '-y', '-i', concatPath,
               '-vf', filters.join(','),
               '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
@@ -205,12 +205,20 @@ async function handleMerge(req, res) {
   });
 }
 
-// ── 啟動診斷：確認 drawtext filter 是否可用 ──
-execFile(ffmpegPath, ['-filters'], { timeout: 5000 }, (_err, stdout) => {
-  const ok = (stdout || '').includes('drawtext');
-  console.log('[startup] drawtext filter:', ok ? 'available ✓' : 'NOT available ✗');
-  console.log('[startup] font file:', require('fs').existsSync(FONT_PATH) ? 'found ✓' : 'NOT found ✗');
-});
+// ── 啟動診斷：偵測哪個 ffmpeg 有 drawtext ──
+let filmFfmpegPath = ffmpegPath; // 預設用 npm binary
+try {
+  const filters = require('child_process').execFileSync('/usr/bin/ffmpeg', ['-filters'], { timeout: 5000 }).toString();
+  if (filters.includes('drawtext')) {
+    filmFfmpegPath = '/usr/bin/ffmpeg';
+    console.log('[startup] system ffmpeg drawtext: available ✓ → film 使用 /usr/bin/ffmpeg');
+  } else {
+    console.log('[startup] system ffmpeg drawtext: NOT available ✗');
+  }
+} catch (_) {
+  console.log('[startup] system ffmpeg: NOT found, film will fallback to concat');
+}
+console.log('[startup] font file:', fs.existsSync(FONT_PATH) ? 'found ✓' : 'NOT found ✗');
 
 // ── 主伺服器 ──
 http.createServer((req, res) => {
