@@ -148,7 +148,9 @@ async function handleMerge(req, res) {
             vidPaths[i] = labelPath;
             console.log('[label] segment', i, 'done');
           } catch (e) {
-            console.warn('[label] segment', i, 'failed:', e.message.slice(0, 600));
+            const errMsg = e.message || '';
+            console.warn('[label] segment', i, 'failed (tail):', errMsg.slice(-800));
+            console.warn('[label] segment', i, 'filter was:', f.join(',').slice(0, 300));
           }
         }
       }
