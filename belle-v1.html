@@ -3488,7 +3488,7 @@ function openVlogSheet() {
     .replace(/[^\x00-\x7F]/g, '').trim();
   document.getElementById('vlogGreetingInput').value = gm;
   document.querySelectorAll('.vlog-layout-opt').forEach(el =>
-    el.classList.toggle('selected', el.dataset.layout === 'film'));
+    el.classList.toggle('selected', el.dataset.layout === 'concat'));
   _updateVlogDesc();
   document.getElementById('vlogGreetingWrap').style.display = '';
   document.getElementById('vlogBackdrop').classList.add('open');

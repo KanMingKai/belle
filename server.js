@@ -149,7 +149,7 @@ async function handleMerge(req, res) {
             ':x=w-text_w-20:y=h-text_h-20:fontsize=16:fontcolor=white@0.4'
           );
 
-          // Pass 2: encode with text overlay
+          // Pass 2: encode with text overlay (fallback to plain concat if drawtext unavailable)
           await new Promise((resolve, reject) => {
             execFile(ffmpegPath, [
               '-y', '-i', concatPath,
@@ -158,7 +158,18 @@ async function handleMerge(req, res) {
               '-c:a', 'aac', '-b:a', '128k',
               outPath
             ], (err, _out, stderr) => {
-              if (err) reject(new Error(stderr)); else resolve();
+              if (err) {
+                const msg = stderr || '';
+                if (msg.includes('No such filter') || msg.includes('Filter not found')) {
+                  console.warn('[film] drawtext not available, falling back to plain concat');
+                  try { fs.copyFileSync(concatPath, outPath); resolve(); }
+                  catch (e2) { reject(e2); }
+                } else {
+                  reject(new Error(msg));
+                }
+              } else {
+                resolve();
+              }
             });
           });
 
