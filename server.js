@@ -94,8 +94,11 @@ async function handleMerge(req, res) {
             '-y',
             '-i', vidPaths[0], '-i', vidPaths[1], '-i', vidPaths[2], '-i', vidPaths[3],
             '-filter_complex',
-            '[0:v]scale=480:270[tl];[1:v]scale=480:270[tr];' +
-            '[2:v]scale=480:270[bl];[3:v]scale=480:270[br];' +
+            // scale to fit 480×480 cell preserving AR, pad black to fill
+            '[0:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[tl];' +
+            '[1:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[tr];' +
+            '[2:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[bl];' +
+            '[3:v]scale=480:480:force_original_aspect_ratio=decrease,pad=480:480:(ow-iw)/2:(oh-ih)/2:black,setsar=1[br];' +
             '[tl][tr]hstack=inputs=2[top];[bl][br]hstack=inputs=2[bot];' +
             '[top][bot]vstack=inputs=2[v]',
             '-map', '[v]',
