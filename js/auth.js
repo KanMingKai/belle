@@ -74,9 +74,26 @@ function onAuthStateChanged(callback) {
   return auth.onAuthStateChanged(callback);
 }
 
+async function loginWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  const result = await auth.signInWithPopup(provider);
+  const user = result.user;
+  const docRef = db.collection('users').doc(user.uid);
+  const doc = await docRef.get();
+  if (!doc.exists) {
+    await docRef.set({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || (user.email || '').split('@')[0],
+      created_at: new Date()
+    });
+  }
+  return user;
+}
+
 /**
  * 获取用户信息
- * @param {string} uid 
+ * @param {string} uid
  * @returns {Promise<Object>}
  */
 async function getUserInfo(uid) {
