@@ -3784,8 +3784,10 @@ function _recOverlaySet(text) {
 }
 
 // 錄製 clips（3 個）水平並排 → 回傳 Blob
+// 每格 306×272，四周 1px 黑框，strip 總尺寸 924×274
 async function _recordStrip(clips, mime) {
-  const W = 308, H = 273;
+  const W = 308, H = 274;          // 每個 cell slot（含 1px 黑框）
+  const cellW = W - 2, cellH = H - 2;  // 實際影片繪製區域 306×272
   const canvas = document.createElement('canvas');
   canvas.width = W * clips.length;
   canvas.height = H;
@@ -3820,8 +3822,10 @@ async function _recordStrip(clips, mime) {
 
   await new Promise(resolve => {
     const iv = setInterval(() => {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < vids.length; i++) {
-        ctx.drawImage(vids[i], i * W, 0, W, H);
+        ctx.drawImage(vids[i], i * W + 1, 1, cellW, cellH);
       }
       if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
     }, 1000 / 15);
@@ -3833,7 +3837,7 @@ async function _recordStrip(clips, mime) {
 }
 
 async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
-  const N = 9, COLS = 3, STRIP_W = 924, STRIP_H = 273;
+  const N = 9, COLS = 3, STRIP_W = 924, STRIP_H = 274;  // 924×822 total (even)
 
   if (!window.MediaRecorder) {
     throw new Error('此瀏覽器不支援 MediaRecorder，請改用 Chrome 或 Safari 15+');

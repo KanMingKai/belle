@@ -304,11 +304,11 @@ async function handleConvert(req, res) {
       await new Promise((resolve, reject) => {
         execFile(ffmpegPath, [
           '-y',
-          '-fflags', '+genpts+igndts',  // fix missing/bad PTS from MediaRecorder WebM
+          '-probesize', '100M', '-analyzeduration', '100M',  // fully probe codec params from MediaRecorder WebM
+          '-fflags', '+genpts+igndts',
           '-i', inPath,
           '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
           '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
-          '-vsync', 'cfr', '-r', '15',  // match canvas captureStream(15fps)
           '-an',
           outPath
         ], { maxBuffer: 50 * 1024 * 1024 }, (err, _o, stderr) => {
