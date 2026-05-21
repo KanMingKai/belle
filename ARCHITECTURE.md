@@ -1,6 +1,6 @@
 # Belle · 架構說明
 
-> 最後更新：2026-05-21
+> 最後更新：2026-05-21（含擷取 UI 統一預覽、相機最短10秒規則）
 
 ---
 
@@ -228,17 +228,39 @@ openUploadSheet()
     │     ├── MediaRecorder 錄製最多 10 秒
     │     │     candidates: ['video/mp4', 'video/webm;codecs=vp9', ...]
     │     │     無 videoBitsPerSecond（瀏覽器自決）
+    │     ├── 錄完後判斷（camElapsed）：
+    │     │     < 10000ms → 丟棄，留在相機待機，顯示 toast「不足 10 秒，請重新拍攝」
+    │     │     ≥ 10000ms → cameraDirectUpload()（直接上傳，不走 uploadForm）
     │     └── 輸出 File（.mp4 或 .webm 視瀏覽器而定）
     │
     └── 相簿 → 選取檔案
                     │
                     ▼
             openUploadForm(file)
-                    ├── initTrimUI()   ← 選取最多 10 秒片段（拖曳範圍）
-                    ├── initCropUI()   ← 拖曳裁切框（輸出 9:8）
+                    │
+                    ├── initTrimUI(fileURL)
+                    │     ├── trimPreviewVid.src = fileURL
+                    │     ├── onloadedmetadata：
+                    │     │     ├── 顯示 trimWrap
+                    │     │     ├── renderTrimWindow()   ← 固定 10s 滑動視窗
+                    │     │     ├── setupTrimWindow()    ← 拖動整個視窗
+                    │     │     ├── generateTrimThumbs() ← 非同步生成 8 幀縮略圖
+                    │     │     └── positionCropFrame()  ← 裁切框疊加在同一預覽框
+                    │     │
+                    │     └── 統一預覽框（trimPreviewWrap）：
+                    │           ┌─────────────────────────────┐
+                    │           │  trimPreviewVid（影片預覽）   │
+                    │           │  ┌──────────┐               │
+                    │           │  │ cropFrame│（9:8，可拖）   │
+                    │           │  └──────────┘            ▶  │
+                    │           └─────────────────────────────┘
+                    │           [■■|═══ 10s window ═══|■■]  ← 時間軸
+                    │           拖動視窗 → 即時更新預覽幀
+                    │           ▶ 播放 → 從 trimStart 播到 trimEnd 自動停
                     │
                     └── submitUpload()
                             ├── uploadToCloudinary(file)     → secure_url（原始）
+                            ├── 讀 trimPreviewVid 尺寸 + cropX/Y/W/H → scaleX/Y
                             ├── getTransformedVideoUrl(url, trim, crop)
                             │     └── 組合帶 eo_/c_crop/q_auto 的 URL
                             ├── saveVideoMetadata(url) → Firestore
@@ -453,10 +475,20 @@ candidates = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'vi
 
 new MediaRecorder(camStream, { mimeType })
 // 無 videoBitsPerSecond，瀏覽器自決
-// 最多錄 10 秒（timer 控制）
-// 輸出副檔名：mp4 (if mimeType 含 'mp4') 或 webm
+// 計時器 camTimerInterval 每 100ms 更新 camElapsed
+// 滿 10000ms 自動停（CAM_MAX_MS = 10000）
 
-→ 上傳到 Cloudinary（直接上傳原始 blob）
+onstop 回呼判斷：
+  camElapsed < 10000  → 丟棄 chunks，
+                        重置 UI（按鈕、計時器），
+                        toast「不足 10 秒，請重新拍攝」，
+                        留在相機畫面（不關閉）
+  camElapsed ≥ 10000  → cameraDirectUpload()
+                          ├── 建立 tempVid 讀取 videoWidth/Height
+                          ├── 自動計算中央 9:8 cropData
+                          └── uploadToCloudinary → saveVideoMetadata
+
+→ 輸出副檔名：mp4（mimeType 含 'mp4'）或 webm
 → Cloudinary 負責轉檔、裁切、壓縮
 ```
 
@@ -602,3 +634,22 @@ Firestore 長連線閒置自動斷、自動重連，為正常行為，不是 bug
 ### /convert 的 MediaRecorder WebM codec 問題
 MediaRecorder 輸出的 WebM 缺少正式的 codec parameters header（live streaming 格式）。
 需加 `-probesize 100M -analyzeduration 100M` 讓 FFmpeg 深度讀取後才能正確解碼。
+
+### 相機錄影最短 10 秒規則
+`onstop` 回呼在 `camElapsed < 10000` 時丟棄 chunks、重置 UI，留在相機畫面讓使用者重拍。
+滿 10 秒（`CAM_MAX_MS = 10000`）自動停時才觸發上傳。
+設計原因：App 規格是 10 秒固定長度；不足 10 秒的片段在 Cloudinary 轉換後
+會導致 trim/duration 不符，影響九宮格 / 四格並排的時間對齊。
+
+### 擷取 UI：裁切框與時間軸統一預覽
+舊版：`trimWrap`（時間軸）和 `cropWrap`（裁切框）是兩個獨立的 section，各用一個 `<video>` 元素。
+新版：`cropWrap` 移除，`cropFrame` 直接絕對定位疊加在 `trimPreviewWrap` 的 `trimPreviewVid` 上。
+- 同一個影片元素同時服務「時間選取預覽」和「裁切框定位」
+- `positionCropFrame` 以 `trimPreviewWrap` 為容器，`video { width:100%; display:block }` 確保無 letterbox，CSS 座標與影片像素 1:1 線性縮放
+- `submitUpload` 改從 `trimPreviewVid.videoWidth/offsetWidth` 計算 scaleX/Y
+
+### 擷取 UI：固定視窗取代雙 Handle
+舊版：兩個獨立的左右 handle 分別拖動，容易誤選超過 10 秒。
+新版：固定寬度的 `trimWindow` div（寬度 = 10 / totalDur × 時間軸寬），
+整個視窗拖動，`trimStart = clamp(0, newPos, totalDur - 10)`，`trimEnd = trimStart + 10`。
+拖動時即時更新 `trimPreviewVid.currentTime = trimStart`。
