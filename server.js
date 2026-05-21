@@ -196,7 +196,8 @@ async function handleMerge(req, res) {
               ...inputArgs,
               '-filter_complex', filter,
               '-map', '[v]', '-an',
-              '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast', '-shortest',
+              '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
+              '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-shortest',
               roundOut
             ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
           });
