@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Belle · Video Pairing</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Cinzel:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Cinzel:wght@400;500&family=DM+Sans:wght@300;400;500&family=Josefin+Sans:wght@100&display=swap" rel="stylesheet">
 <style>
 * { margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent; }
 
@@ -483,6 +483,20 @@ body {
 .myvid-slot {
   color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.5px;
 }
+.myvid-mute {
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;cursor:pointer;
+}
+.myvid-actions { display:flex;gap:10px;margin-top:14px; }
+.myvid-action-btn {
+  display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;
+  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+  color:#fff;font-size:11px;letter-spacing:0.3px;cursor:pointer;user-select:none;
+  transition:background 0.15s;
+}
+.myvid-action-btn:active { background:rgba(255,255,255,0.22); }
+.myvid-action-btn.saved { background:rgba(212,184,150,0.35);border-color:var(--sand); }
 .myvid-swipe-hint {
   position:absolute;bottom:50%;right:12px;z-index:2;transform:translateY(50%);
   display:flex;flex-direction:column;gap:4px;align-items:center;
@@ -1571,9 +1585,9 @@ body {
         <div class="opt-ico-wrap">▶</div>
         <div class="vlog-opt-label">原版</div>
       </div>
-      <div class="vlog-layout-opt" data-layout="film" onclick="selectVlogLayout(this)">
-        <div class="opt-ico-wrap">🎞</div>
-        <div class="vlog-opt-label">電影膠卷</div>
+      <div class="vlog-layout-opt" data-layout="grid2" onclick="selectVlogLayout(this)">
+        <div class="opt-ico-wrap">▥</div>
+        <div class="vlog-opt-label">雙格</div>
       </div>
       <div class="vlog-layout-opt" data-layout="grid4" onclick="selectVlogLayout(this)">
         <div class="opt-ico-wrap">▦</div>
@@ -1583,10 +1597,6 @@ body {
         <div class="opt-ico-wrap">▩</div>
         <div class="vlog-opt-label">九格</div>
       </div>
-    </div>
-    <div class="vlog-greeting-wrap" id="vlogGreetingWrap">
-      <input id="vlogGreetingInput" class="vlog-greeting-input" type="text"
-        placeholder="膠卷頂部文字（選填，不支援 emoji）">
     </div>
     <div class="sheet-options">
       <div class="sheet-option" onclick="_doVlogDl()">
@@ -1693,11 +1703,11 @@ body {
 
   <!-- ══ MY VIDEOS FULLSCREEN PLAYER ══ -->
   <div class="myvid-player" id="myVidPlayer">
-    <video id="myVidVideo" class="myvid-video" playsinline loop></video>
+    <video id="myVidVideo" class="myvid-video" playsinline loop muted></video>
     <div class="myvid-top">
       <div class="myvid-close" onclick="closeMyVidPlayer()">✕</div>
       <div class="myvid-counter" id="myVidCounter">1 / 1</div>
-      <div style="width:36px"></div>
+      <div class="myvid-mute" id="myVidMute" onclick="toggleMyVidMute()">🔇</div>
     </div>
     <div class="myvid-swipe-hint" id="myVidHint">
       <span>↑</span>
@@ -1707,6 +1717,10 @@ body {
     <div class="myvid-bottom">
       <div class="myvid-title" id="myVidTitle"></div>
       <div class="myvid-slot" id="myVidSlot"></div>
+      <div class="myvid-actions">
+        <div class="myvid-action-btn" id="myVidSetBtn" onclick="setMyVidAsActive()">★ 設為代表</div>
+        <div class="myvid-action-btn" onclick="shareMyVid()">↗ 分享</div>
+      </div>
     </div>
   </div>
 
@@ -2210,7 +2224,7 @@ function renderGrid() {
   }
   grid.innerHTML = '';
   let lastLabel = null;
-  myVids.forEach((v) => {
+  myVids.forEach((v, vidIdx) => {
     const dateStr = v.time_slot ? v.time_slot.split('_')[0] : '';
     const label = _vidDateLabel(v.time_slot);
     if (label !== lastLabel) {
@@ -2223,6 +2237,7 @@ function renderGrid() {
     }
     const cell = document.createElement('div');
     cell.className = 'vid-cell';
+    cell.onclick = () => openMyVidPlayer(vidIdx);
     const greeting = slotGreeting(v.time_slot);
     const titleTxt = v.title || '無標題';
     cell.innerHTML = `
@@ -2264,6 +2279,9 @@ var myVidSwipeStartY = null;
 
 function openMyVidPlayer(startIdx) {
   myVidIdx = startIdx;
+  var vid = document.getElementById('myVidVideo');
+  vid.muted = true;
+  document.getElementById('myVidMute').textContent = '🔇';
   document.getElementById('myVidPlayer').classList.add('open');
   playMyVidAt(myVidIdx);
   setupMyVidSwipe();
@@ -2275,6 +2293,36 @@ function closeMyVidPlayer() {
   vid.pause();
   vid.src = '';
   myVidSwipeStartY = null;
+}
+
+function toggleMyVidMute() {
+  var vid = document.getElementById('myVidVideo');
+  vid.muted = !vid.muted;
+  document.getElementById('myVidMute').textContent = vid.muted ? '🔇' : '🔊';
+}
+
+async function setMyVidAsActive() {
+  var v = myVids[myVidIdx];
+  if (!v || !v.time_slot) { toast('✗ 缺少時段資訊'); return; }
+  var btn = document.getElementById('myVidSetBtn');
+  try {
+    await setActiveSlotVideo(CU.uid, v.time_slot, v.id);
+    toast('✓ 已設為代表影片');
+    if (btn) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 2000); }
+  } catch(e) { toast('✗ 設定失敗：' + e.message); }
+}
+
+function shareMyVid() {
+  var v = myVids[myVidIdx];
+  if (!v) return;
+  var url = v.url || '';
+  if (navigator.share) {
+    navigator.share({ title: v.title || 'Belle 影片', url: url }).catch(function(){});
+  } else {
+    navigator.clipboard.writeText(url)
+      .then(function() { toast('✓ 連結已複製'); })
+      .catch(function() { toast('✗ 複製失敗'); });
+  }
 }
 
 function playMyVidAt(idx) {
@@ -2307,7 +2355,13 @@ function setupMyVidSwipe() {
     if (myVidSwipeStartY === null) return;
     var dy = myVidSwipeStartY - e.changedTouches[0].clientY;
     myVidSwipeStartY = null;
-    if (Math.abs(dy) < 40) return;
+    if (Math.abs(dy) < 40) {
+      if (!e.target.closest('.myvid-close,.myvid-mute,.myvid-action-btn')) {
+        var vid = document.getElementById('myVidVideo');
+        if (vid.paused) vid.play().catch(function(){}); else vid.pause();
+      }
+      return;
+    }
     if (dy > 0 && myVidIdx < myVids.length - 1) playMyVidAt(myVidIdx + 1);
     else if (dy < 0 && myVidIdx > 0) playMyVidAt(myVidIdx - 1);
   };
@@ -3617,18 +3671,10 @@ function openVlogSheet(dateStr, triggerBtn) {
     ? { type: 'date', dateStr, triggerBtn }
     : { type: 'favs', triggerBtn: document.getElementById('dlFavBtn') };
 
-  // 預填問候語
-  const gm = isDate
-    ? slotGreeting(dateStr + '_' + String(new Date().getHours()).padStart(2,'0') + '-00')
-    : (document.getElementById('favFeatGm')?.textContent || 'Good Morning');
-  document.getElementById('vlogGreetingInput').value =
-    (gm || '').replace(/[^\x00-\x7F]/g, '').trim();
-
   // 預設 concat
   document.querySelectorAll('.vlog-layout-opt').forEach(el =>
     el.classList.toggle('selected', el.dataset.layout === 'concat'));
   _updateVlogDesc();
-  document.getElementById('vlogGreetingWrap').style.display = 'none';
   document.getElementById('vlogBackdrop').classList.add('open');
   document.getElementById('vlogSheet').classList.add('open');
 }
@@ -3642,10 +3688,9 @@ async function _doVlogDl() {
   if (!_vlogCtx) return;
   if (_vlogCtx.type === 'date') {
     const layout   = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
-    const greeting = document.getElementById('vlogGreetingInput').value.trim();
     const { dateStr, triggerBtn } = _vlogCtx;
     closeVlogSheet();
-    await _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn);
+    await _downloadDateWithLayout(dateStr, layout, '', triggerBtn);
   } else {
     await downloadFavVids();
   }
@@ -3676,10 +3721,10 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
       title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
     }));
 
-    if (layout === 'grid4' || layout === 'grid9') {
-      const cols = layout === 'grid4' ? 2 : 3;
-      const slotH = layout === 'grid4' ? 410 : 274;
-      await _doGridCanvas(token, segments, 'belle-' + layout + '-' + dateStr + '.mp4', btn, origLabel, cols, cols, slotH);
+    if (layout === 'grid2' || layout === 'grid4' || layout === 'grid9') {
+      const cfgMap = { grid2: [1, 2, 520], grid4: [2, 2, 410], grid9: [3, 3, 274] };
+      const [cols, rows, slotH] = cfgMap[layout];
+      await _doGridCanvas(token, segments, 'belle-' + layout + '-' + dateStr + '.mp4', btn, origLabel, cols, rows, slotH);
       return;
     }
 
@@ -3713,8 +3758,6 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
 function selectVlogLayout(el) {
   document.querySelectorAll('.vlog-layout-opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
-  document.getElementById('vlogGreetingWrap').style.display =
-    el.dataset.layout === 'film' ? '' : 'none';
   _updateVlogDesc();
 }
 
@@ -3722,7 +3765,7 @@ function _updateVlogDesc() {
   const layout = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
   const desc = {
     concat: '原版拼接，快速輸出',
-    film:   '燒入日期 + 問候語 + belle 浮水印',
+    grid2:  '全部影片 1×2 上下同時播放，瀏覽器端處理',
     grid4:  '全部影片 2×2 同時播放，不足從頭補',
     grid9:  '全部影片 3×3 同時播放，瀏覽器端處理（較慢）'
   };
@@ -3731,7 +3774,7 @@ function _updateVlogDesc() {
 
 // ── grid layout 補齊：不足倍數時從頭循環 ──
 function _padToGridSize(arr, layout) {
-  const sizes = { grid4: 4, grid9: 9 };
+  const sizes = { grid2: 2, grid4: 4, grid9: 9 };
   const n = sizes[layout];
   if (!n || !arr.length) return arr;
   const out = [...arr];
@@ -3754,7 +3797,7 @@ async function downloadFavVids() {
   }
 
   let segments = [];
-  if (layout === 'grid4' || layout === 'grid9') {
+  if (layout === 'grid2' || layout === 'grid4' || layout === 'grid9') {
     segments = (favData || [])
       .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''))
       .map(f => {
@@ -3789,10 +3832,10 @@ async function downloadFavVids() {
     const today     = new Date().toISOString().slice(0, 10);
     const dateLabel = today.replaceAll('-', '.');
 
-    if (layout === 'grid4' || layout === 'grid9') {
-      const cols = layout === 'grid4' ? 2 : 3;
-      const slotH = layout === 'grid4' ? 410 : 274;
-      await _doGridCanvas(token, segments, 'belle-' + layout + '-favs-' + today + '.mp4', btn, '下載收藏', cols, cols, slotH);
+    if (layout === 'grid2' || layout === 'grid4' || layout === 'grid9') {
+      const cfgMap = { grid2: [1, 2, 520], grid4: [2, 2, 410], grid9: [3, 3, 274] };
+      const [cols, rows, slotH] = cfgMap[layout];
+      await _doGridCanvas(token, segments, 'belle-' + layout + '-favs-' + today + '.mp4', btn, '下載收藏', cols, rows, slotH);
       return;
     }
 
@@ -3910,6 +3953,11 @@ async function _doGridCanvas(token, segments, filename, btn, origLabel, cols, ro
   let finalBlob;
 
   try {
+    await Promise.all([
+      document.fonts.load('italic 18px "Playfair Display"'),
+      document.fonts.load('100 11px "Josefin Sans"')
+    ]).catch(() => {});
+
     const roundBlobs = [];
 
     for (let r = 0; r < totalRounds; r++) {
@@ -3951,7 +3999,7 @@ async function _doGridCanvas(token, segments, filename, btn, origLabel, cols, ro
       _recOverlaySet('錄製' + roundLabel + '…');
       btn.textContent = '錄製' + roundLabel + '…';
 
-      // ── Step 4：繪製 9 格到同一個 canvas，直到所有影片結束 ──
+      // ── Step 4：繪製格子到同一個 canvas，直到所有影片結束 ──
       await new Promise(resolve => {
         const iv = setInterval(() => {
           ctx.fillStyle = '#000';
@@ -3960,6 +4008,29 @@ async function _doGridCanvas(token, segments, filename, btn, origLabel, cols, ro
             const col = i % cols, row = Math.floor(i / cols);
             ctx.drawImage(vids[i], col * SLOT_W + 1, row * SLOT_H + 1, CELL_W, CELL_H);
           }
+          // 每格文字 overlay（問候語 + 標題）
+          for (let i = 0; i < group.length; i++) {
+            const seg = group[i] || {};
+            const col = i % cols, row = Math.floor(i / cols);
+            const cx = col * SLOT_W + 1, cy = row * SLOT_H + 1;
+            const gm  = seg.greeting || '';
+            const tag = (seg.title   || '').toUpperCase();
+            ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
+            if (gm) {
+              ctx.font = 'italic 18px "Playfair Display", serif';
+              ctx.fillStyle = 'rgba(255,255,255,0.9)';
+              ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 3;
+              ctx.fillText(gm, cx + 16, cy + CELL_H - 30);
+            }
+            if (tag) {
+              ctx.font = '100 11px "Josefin Sans", sans-serif';
+              ctx.fillStyle = 'rgba(255,255,255,0.75)';
+              ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 2;
+              ctx.fillText(tag, cx + 16, cy + CELL_H - 8);
+            }
+          }
+          ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
           if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
         }, 1000 / 30);
       });
