@@ -3776,105 +3776,194 @@ async function downloadFavVids() {
   }
 }
 
-// ── Grid9：Canvas + MediaRecorder（影片串流繪製，不佔滿記憶體）──
+// ── Grid9：逐列錄製後垂直疊合（最多 3 個 video decoder 同時執行）──
 function _recOverlaySet(text) {
   const el = document.getElementById('recProgress');
   if (el) el.textContent = text;
 }
 
+// 錄製 clips（3 個）水平並排 → 回傳 Blob
+async function _recordStrip(clips, mime) {
+  const W = 308, H = 273;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * clips.length;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const rec = new MediaRecorder(canvas.captureStream(15), {
+    mimeType: mime, videoBitsPerSecond: 3_000_000
+  });
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  rec.start(200);
+
+  const vids = clips.map(seg => {
+    const v = document.createElement('video');
+    v.crossOrigin = 'anonymous';
+    v.src = seg.url;
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'auto';
+    return v;
+  });
+
+  await Promise.all(vids.map(v => new Promise((res, rej) => {
+    v.oncanplaythrough = res;
+    v.onerror = () => rej(new Error('影片載入失敗'));
+    setTimeout(() => rej(new Error('影片載入逾時')), 40000);
+    v.load();
+  })));
+
+  await Promise.all(vids.map(v => v.play()));
+  await new Promise(r => setTimeout(r, 200));
+
+  await new Promise(resolve => {
+    const iv = setInterval(() => {
+      for (let i = 0; i < vids.length; i++) {
+        ctx.drawImage(vids[i], i * W, 0, W, H);
+      }
+      if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
+    }, 1000 / 15);
+  });
+
+  vids.forEach(v => { v.pause(); v.src = ''; });
+  await new Promise(resolve => { rec.onstop = resolve; rec.stop(); });
+  return new Blob(chunks, { type: mime });
+}
+
 async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
-  const COLS = 3, ROWS = 3, N = 9, W = 308, H = 273;
+  const N = 9, COLS = 3, STRIP_W = 924, STRIP_H = 273;
 
   if (!window.MediaRecorder) {
     throw new Error('此瀏覽器不支援 MediaRecorder，請改用 Chrome 或 Safari 15+');
   }
 
-  // ── 進入錄製模式 ──
-  // 1. 暫停頁面上所有其他 video
-  const pausedVids = Array.from(document.querySelectorAll('video'))
-    .filter(v => !v.paused);
+  const pausedVids = Array.from(document.querySelectorAll('video')).filter(v => !v.paused);
   pausedVids.forEach(v => v.pause());
-  // 2. 顯示全螢幕遮罩
   document.getElementById('recOverlay').classList.add('active');
   _recOverlaySet('準備中…');
-
-  const canvas  = document.createElement('canvas');
-  canvas.width  = COLS * W;
-  canvas.height = ROWS * H;
-  const ctx = canvas.getContext('2d');
 
   const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']
     .find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
 
-  const recorder = new MediaRecorder(canvas.captureStream(15), {  // 15fps 降低 CPU 壓力
-    mimeType: mime, videoBitsPerSecond: 3_000_000
-  });
-  const chunks = [];
-  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-  recorder.start(200);
-
   const totalRounds = Math.ceil(segments.length / N);
+  let finalBlob;
 
   try {
+    const roundBlobs = [];
+
     for (let r = 0; r < totalRounds; r++) {
       const group = segments.slice(r * N, (r + 1) * N);
       const roundLabel = totalRounds > 1 ? ' (' + (r + 1) + '/' + totalRounds + ')' : '';
 
-      _recOverlaySet('載入影片' + roundLabel + '…');
-      btn.textContent = '載入' + roundLabel + '…';
+      // 逐列錄製（每次僅 3 個 decoder）
+      const rowBlobs = [];
+      for (let row = 0; row < COLS; row++) {
+        const rowClips = group.slice(row * COLS, (row + 1) * COLS);
+        _recOverlaySet('錄製第 ' + (row + 1) + ' 列' + roundLabel + '…');
+        btn.textContent = '列 ' + (row + 1) + '/3' + roundLabel;
+        rowBlobs.push(await _recordStrip(rowClips, mime));
+      }
 
-      const vids = group.map(seg => {
-        const v       = document.createElement('video');
-        v.crossOrigin = 'anonymous';
-        v.src         = seg.url;
-        v.muted       = true;
-        v.playsInline = true;
-        v.preload     = 'auto';
+      // 將 3 列 blob 疊合為九宮格（3 個 decoder 播放列影片）
+      _recOverlaySet('合成九宮格' + roundLabel + '…');
+      btn.textContent = '合成' + roundLabel + '…';
+
+      const stackCanvas = document.createElement('canvas');
+      stackCanvas.width = STRIP_W;
+      stackCanvas.height = STRIP_H * COLS;
+      const stackCtx = stackCanvas.getContext('2d');
+      const stackRec = new MediaRecorder(stackCanvas.captureStream(15), {
+        mimeType: mime, videoBitsPerSecond: 4_000_000
+      });
+      const stackChunks = [];
+      stackRec.ondataavailable = e => { if (e.data.size > 0) stackChunks.push(e.data); };
+      stackRec.start(200);
+
+      const rowUrls = rowBlobs.map(b => URL.createObjectURL(b));
+      const rowVids = rowUrls.map(url => {
+        const v = document.createElement('video');
+        v.src = url; v.muted = true; v.playsInline = true; v.preload = 'auto';
         return v;
       });
 
-      // 等完整 buffer（canplaythrough）再播，避免播放途中卡頓
-      await Promise.all(vids.map(v => new Promise((res, rej) => {
+      await Promise.all(rowVids.map(v => new Promise((res, rej) => {
         v.oncanplaythrough = res;
-        v.onerror = () => rej(new Error('影片載入失敗'));
-        setTimeout(() => rej(new Error('影片載入逾時')), 40000);
+        v.onerror = () => rej(new Error('列合成載入失敗'));
+        setTimeout(() => rej(new Error('列合成逾時')), 60000);
         v.load();
       })));
 
-      await Promise.all(vids.map(v => v.play()));
-      // 等 200ms 讓所有 video decoder 同步穩定
+      await Promise.all(rowVids.map(v => v.play()));
       await new Promise(r => setTimeout(r, 200));
 
-      _recOverlaySet('合成中' + roundLabel + '…');
-      btn.textContent = '合成' + roundLabel + '…';
-
-      // 固定 interval 繪製（比 rAF 更穩定的幀率控制）
       await new Promise(resolve => {
-        const interval = setInterval(() => {
-          for (let i = 0; i < vids.length; i++) {
-            ctx.drawImage(vids[i], (i % COLS) * W, Math.floor(i / COLS) * H, W, H);
+        const iv = setInterval(() => {
+          for (let i = 0; i < rowVids.length; i++) {
+            stackCtx.drawImage(rowVids[i], 0, i * STRIP_H, STRIP_W, STRIP_H);
           }
-          if (vids.every(v => v.ended || v.paused)) {
-            clearInterval(interval);
-            resolve();
-          }
-        }, 1000 / 15); // 15fps
+          if (rowVids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
+        }, 1000 / 15);
       });
 
-      vids.forEach(v => { v.pause(); v.src = ''; });
+      rowVids.forEach(v => { v.pause(); v.src = ''; });
+      rowUrls.forEach(u => URL.revokeObjectURL(u));
+      await new Promise(resolve => { stackRec.onstop = resolve; stackRec.stop(); });
+      roundBlobs.push(new Blob(stackChunks, { type: mime }));
     }
+
+    // 單輪直接用；多輪逐一播放合併
+    if (roundBlobs.length === 1) {
+      finalBlob = roundBlobs[0];
+    } else {
+      _recOverlaySet('合併輪次…');
+      btn.textContent = '合併中…';
+
+      const concatCanvas = document.createElement('canvas');
+      concatCanvas.width = STRIP_W;
+      concatCanvas.height = STRIP_H * COLS;
+      const concatCtx = concatCanvas.getContext('2d');
+      const concatRec = new MediaRecorder(concatCanvas.captureStream(15), {
+        mimeType: mime, videoBitsPerSecond: 4_000_000
+      });
+      const concatChunks = [];
+      concatRec.ondataavailable = e => { if (e.data.size > 0) concatChunks.push(e.data); };
+      concatRec.start(200);
+
+      for (const roundBlob of roundBlobs) {
+        const url = URL.createObjectURL(roundBlob);
+        const v = document.createElement('video');
+        v.src = url; v.muted = true; v.playsInline = true; v.preload = 'auto';
+        await new Promise((res, rej) => {
+          v.oncanplaythrough = res;
+          v.onerror = () => rej(new Error('輪次合併載入失敗'));
+          setTimeout(() => rej(new Error('輪次合併逾時')), 60000);
+          v.load();
+        });
+        await v.play();
+        await new Promise(r => setTimeout(r, 200));
+        await new Promise(resolve => {
+          const iv = setInterval(() => {
+            concatCtx.drawImage(v, 0, 0, STRIP_W, STRIP_H * COLS);
+            if (v.ended || v.paused) { clearInterval(iv); resolve(); }
+          }, 1000 / 15);
+        });
+        v.pause(); v.src = '';
+        URL.revokeObjectURL(url);
+      }
+
+      await new Promise(resolve => { concatRec.onstop = resolve; concatRec.stop(); });
+      finalBlob = new Blob(concatChunks, { type: mime });
+    }
+
   } finally {
-    // ── 離開錄製模式（無論成功失敗都執行）──
     document.getElementById('recOverlay').classList.remove('active');
     pausedVids.forEach(v => { try { v.play(); } catch (_) {} });
   }
 
-  await new Promise(resolve => { recorder.onstop = resolve; recorder.stop(); });
-
-  const blob = new Blob(chunks, { type: mime });
   btn.textContent = '上傳中…';
   toast('上傳至 Google Drive…');
-  const file = await uploadToGDrive(blob, filename, token);
+  const file = await uploadToGDrive(finalBlob, filename, token);
   toast('✓ 已存至 Google Drive：' + file.name);
   btn.textContent = '✓';
   setTimeout(() => { btn.textContent = origLabel; }, 3000);
