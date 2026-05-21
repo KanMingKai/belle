@@ -298,15 +298,27 @@ async function handleConvert(req, res) {
   req.on('data', chunk => chunks.push(chunk));
   req.on('end', async () => {
     try {
-      fs.writeFileSync(inPath, Buffer.concat(chunks));
+      const inBuf = Buffer.concat(chunks);
+      console.log('[convert] received', inBuf.length, 'bytes');
+      fs.writeFileSync(inPath, inBuf);
       await new Promise((resolve, reject) => {
         execFile(ffmpegPath, [
-          '-y', '-i', inPath,
+          '-y',
+          '-fflags', '+genpts+igndts',  // fix missing/bad PTS from MediaRecorder WebM
+          '-i', inPath,
           '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
           '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+          '-vsync', 'cfr', '-r', '15',  // match canvas captureStream(15fps)
           '-an',
           outPath
-        ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
+        ], { maxBuffer: 50 * 1024 * 1024 }, (err, _o, stderr) => {
+          if (err) {
+            console.error('[convert ffmpeg stderr tail]', stderr.slice(-1000));
+            reject(new Error(stderr.slice(-800)));
+          } else {
+            resolve();
+          }
+        });
       });
       const stat = fs.statSync(outPath);
       res.writeHead(200, {

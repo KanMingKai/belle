@@ -3969,7 +3969,10 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
     headers: { 'Content-Type': finalBlob.type || 'video/webm' },
     body: finalBlob
   });
-  if (!convertRes.ok) throw new Error('格式轉換失敗：' + convertRes.status);
+  if (!convertRes.ok) {
+    const errBody = await convertRes.json().catch(() => ({}));
+    throw new Error('格式轉換失敗：' + (errBody.error || convertRes.status));
+  }
   const mp4Blob = await convertRes.blob();
 
   btn.textContent = '上傳中…';
