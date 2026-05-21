@@ -1937,6 +1937,15 @@ function _fmtSlotTime(ts) {
   const [h, m] = (t || '00-00').split('-');
   return (d || '').replace(/-/g, '/') + ' ' + h + ':' + (m || '00');
 }
+function _fmtUploadedAt(uploadedAt, fallbackSlot) {
+  const d = uploadedAt?.toDate ? uploadedAt.toDate() : (uploadedAt ? new Date(uploadedAt) : null);
+  if (d && !isNaN(d)) {
+    const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '/' + p(d.getMonth()+1) + '/' + p(d.getDate())
+      + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  return _fmtSlotTime(fallbackSlot);
+}
 function slotGreeting(timeSlot) {
   if (!timeSlot) return 'Good Morning';
   const hm = (timeSlot.split('_')[1] || '').split('-');
@@ -3718,11 +3727,11 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
     const segments = vids.map(v => ({
       url:      qualifyUrl(v.url).replace(/,f_auto/g,'').replace(/f_auto,/g,''),
       greeting: slotGreeting(v.time_slot),
-      title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
+      title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtUploadedAt(v.uploaded_at, v.time_slot)
     }));
 
     if (layout === 'grid2' || layout === 'grid4' || layout === 'grid9') {
-      const cfgMap = { grid2: [1, 2, 520], grid4: [2, 2, 410], grid9: [3, 3, 274] };
+      const cfgMap = { grid2: [1, 2, 822], grid4: [2, 2, 410], grid9: [3, 3, 274] };
       const [cols, rows, slotH] = cfgMap[layout];
       await _doGridCanvas(token, segments, 'belle-' + layout + '-' + dateStr + '.mp4', btn, origLabel, cols, rows, slotH);
       return;
@@ -3788,11 +3797,11 @@ async function downloadFavVids() {
   if (_dlBusy) { toast('處理中，請稍候…'); return; }
   const layout = document.querySelector('.vlog-layout-opt.selected')?.dataset.layout || 'concat';
 
-  function _buildSeg(url, timeSlot) {
+  function _buildSeg(url, timeSlot, uploadedAt) {
     return {
       url: qualifyUrl(url).replace(/,f_auto/g, '').replace(/f_auto,/g, ''),
       greeting: slotGreeting(timeSlot),
-      title: '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(timeSlot)
+      title: '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtUploadedAt(uploadedAt, timeSlot)
     };
   }
 
@@ -3802,7 +3811,8 @@ async function downloadFavVids() {
       .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''))
       .map(f => {
         const url = f.my_video_url || f.partner_video_url;
-        return url ? _buildSeg(url, f.time_slot) : null;
+        const myVid = (myVids || []).find(v => v.id === f.my_video_id);
+        return url ? _buildSeg(url, f.time_slot, myVid?.uploaded_at) : null;
       }).filter(Boolean);
     segments = _padToGridSize(segments, layout);
   } else {
@@ -3812,7 +3822,7 @@ async function downloadFavVids() {
         const myVid = (myVids || []).find(v => v.id === f.my_video_id);
         const segs  = [];
         if (f.partner_video_url) segs.push(_buildSeg(f.partner_video_url, f.time_slot));
-        if (f.my_video_url)      segs.push(_buildSeg(f.my_video_url, f.time_slot));
+        if (f.my_video_url)      segs.push(_buildSeg(f.my_video_url, f.time_slot, myVid?.uploaded_at));
         return segs;
       });
   }
@@ -3833,7 +3843,7 @@ async function downloadFavVids() {
     const dateLabel = today.replaceAll('-', '.');
 
     if (layout === 'grid2' || layout === 'grid4' || layout === 'grid9') {
-      const cfgMap = { grid2: [1, 2, 520], grid4: [2, 2, 410], grid9: [3, 3, 274] };
+      const cfgMap = { grid2: [1, 2, 822], grid4: [2, 2, 410], grid9: [3, 3, 274] };
       const [cols, rows, slotH] = cfgMap[layout];
       await _doGridCanvas(token, segments, 'belle-' + layout + '-favs-' + today + '.mp4', btn, '下載收藏', cols, rows, slotH);
       return;
@@ -4001,7 +4011,8 @@ async function _doGridCanvas(token, segments, filename, btn, origLabel, cols, ro
 
       // ── Step 4：繪製格子到同一個 canvas，直到所有影片結束 ──
       await new Promise(resolve => {
-        const iv = setInterval(() => {
+        let running = true;
+        function draw() {
           ctx.fillStyle = '#000';
           ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
           for (let i = 0; i < vids.length; i++) {
@@ -4031,8 +4042,10 @@ async function _doGridCanvas(token, segments, filename, btn, origLabel, cols, ro
           }
           ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
           ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-          if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
-        }, 1000 / 30);
+          if (vids.every(v => v.ended || v.paused)) { running = false; resolve(); return; }
+          if (running) requestAnimationFrame(draw);
+        }
+        requestAnimationFrame(draw);
       });
 
       vids.forEach(v => { v.pause(); v.src = ''; });
