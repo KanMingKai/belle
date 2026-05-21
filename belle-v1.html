@@ -357,6 +357,31 @@ body {
   font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
   font-size:15px;color:var(--cream);
 }
+/* ── RECORDING OVERLAY ── */
+.rec-overlay {
+  position:fixed;inset:0;z-index:999;
+  background:rgba(10,7,4,0.96);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;opacity:0;pointer-events:none;transition:opacity 0.25s;
+}
+.rec-overlay.active { opacity:1;pointer-events:all; }
+.rec-dot {
+  width:10px;height:10px;border-radius:50%;background:#b8975a;
+  animation:rec-blink 1s infinite;
+}
+@keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.rec-label {
+  font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;
+  color:var(--sand);text-transform:uppercase;
+}
+.rec-progress {
+  font-family:'DM Sans',sans-serif;font-size:22px;color:var(--cream);
+  min-height:32px;text-align:center;
+}
+.rec-hint {
+  font-size:11px;color:rgba(212,184,150,0.45);letter-spacing:1px;
+  text-align:center;max-width:220px;line-height:1.6;
+}
 /* ── GRID HEADER ── */
 .grid-hdr {
   display:flex;align-items:center;justify-content:space-between;
@@ -3752,6 +3777,11 @@ async function downloadFavVids() {
 }
 
 // ── Grid9：Canvas + MediaRecorder（影片串流繪製，不佔滿記憶體）──
+function _recOverlaySet(text) {
+  const el = document.getElementById('recProgress');
+  if (el) el.textContent = text;
+}
+
 async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
   const COLS = 3, ROWS = 3, N = 9, W = 308, H = 273;
 
@@ -3759,17 +3789,25 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
     throw new Error('此瀏覽器不支援 MediaRecorder，請改用 Chrome 或 Safari 15+');
   }
 
+  // ── 進入錄製模式 ──
+  // 1. 暫停頁面上所有其他 video
+  const pausedVids = Array.from(document.querySelectorAll('video'))
+    .filter(v => !v.paused);
+  pausedVids.forEach(v => v.pause());
+  // 2. 顯示全螢幕遮罩
+  document.getElementById('recOverlay').classList.add('active');
+  _recOverlaySet('準備中…');
+
   const canvas  = document.createElement('canvas');
-  canvas.width  = COLS * W;  // 924
-  canvas.height = ROWS * H;  // 819
+  canvas.width  = COLS * W;
+  canvas.height = ROWS * H;
   const ctx = canvas.getContext('2d');
 
-  // 選最佳支援格式
   const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']
     .find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
 
-  const recorder = new MediaRecorder(canvas.captureStream(30), {
-    mimeType: mime, videoBitsPerSecond: 4_000_000
+  const recorder = new MediaRecorder(canvas.captureStream(15), {  // 15fps 降低 CPU 壓力
+    mimeType: mime, videoBitsPerSecond: 3_000_000
   });
   const chunks = [];
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
@@ -3777,62 +3815,61 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
 
   const totalRounds = Math.ceil(segments.length / N);
 
-  for (let r = 0; r < totalRounds; r++) {
-    const group = segments.slice(r * N, (r + 1) * N);
+  try {
+    for (let r = 0; r < totalRounds; r++) {
+      const group = segments.slice(r * N, (r + 1) * N);
+      const roundLabel = totalRounds > 1 ? ' (' + (r + 1) + '/' + totalRounds + ')' : '';
 
-    btn.textContent = '載入 ' + (r + 1) + '/' + totalRounds + '…';
-    toast('載入第 ' + (r + 1) + ' 輪影片…');
+      _recOverlaySet('載入影片' + roundLabel + '…');
+      btn.textContent = '載入' + roundLabel + '…';
 
-    // 建立 video 元素（串流，不佔 ArrayBuffer 記憶體）
-    const vids = group.map(seg => {
-      const v       = document.createElement('video');
-      v.crossOrigin = 'anonymous';
-      v.src         = seg.url;
-      v.muted       = true;
-      v.playsInline = true;
-      v.preload     = 'auto';
-      return v;
-    });
+      const vids = group.map(seg => {
+        const v       = document.createElement('video');
+        v.crossOrigin = 'anonymous';
+        v.src         = seg.url;
+        v.muted       = true;
+        v.playsInline = true;
+        v.preload     = 'auto';
+        return v;
+      });
 
-    // 等所有影片 ready
-    await Promise.all(vids.map(v => new Promise((res, rej) => {
-      v.oncanplay = res;
-      v.onerror   = () => rej(new Error('影片載入失敗'));
-      setTimeout(() => rej(new Error('影片載入逾時')), 30000);
-      v.load();
-    })));
+      // 等完整 buffer（canplaythrough）再播，避免播放途中卡頓
+      await Promise.all(vids.map(v => new Promise((res, rej) => {
+        v.oncanplaythrough = res;
+        v.onerror = () => rej(new Error('影片載入失敗'));
+        setTimeout(() => rej(new Error('影片載入逾時')), 40000);
+        v.load();
+      })));
 
-    // 全部同時開始播
-    await Promise.all(vids.map(v => v.play()));
+      await Promise.all(vids.map(v => v.play()));
+      // 等 200ms 讓所有 video decoder 同步穩定
+      await new Promise(r => setTimeout(r, 200));
 
-    btn.textContent = '合成 ' + (r + 1) + '/' + totalRounds + '…';
-    toast('合成第 ' + (r + 1) + ' 輪 3×3…');
+      _recOverlaySet('合成中' + roundLabel + '…');
+      btn.textContent = '合成' + roundLabel + '…';
 
-    // Canvas 繪圖迴圈，直到全部播完
-    await new Promise(resolve => {
-      let raf;
-      function draw() {
-        for (let i = 0; i < vids.length; i++) {
-          ctx.drawImage(vids[i], (i % COLS) * W, Math.floor(i / COLS) * H, W, H);
-        }
-        if (vids.every(v => v.ended || v.paused)) {
-          cancelAnimationFrame(raf);
-          resolve();
-          return;
-        }
-        raf = requestAnimationFrame(draw);
-      }
-      raf = requestAnimationFrame(draw);
-    });
+      // 固定 interval 繪製（比 rAF 更穩定的幀率控制）
+      await new Promise(resolve => {
+        const interval = setInterval(() => {
+          for (let i = 0; i < vids.length; i++) {
+            ctx.drawImage(vids[i], (i % COLS) * W, Math.floor(i / COLS) * H, W, H);
+          }
+          if (vids.every(v => v.ended || v.paused)) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 1000 / 15); // 15fps
+      });
 
-    vids.forEach(v => { v.pause(); v.src = ''; });
+      vids.forEach(v => { v.pause(); v.src = ''; });
+    }
+  } finally {
+    // ── 離開錄製模式（無論成功失敗都執行）──
+    document.getElementById('recOverlay').classList.remove('active');
+    pausedVids.forEach(v => { try { v.play(); } catch (_) {} });
   }
 
-  // 停止錄製，等最後一批資料收進來
-  await new Promise(resolve => {
-    recorder.onstop = resolve;
-    recorder.stop();
-  });
+  await new Promise(resolve => { recorder.onstop = resolve; recorder.stop(); });
 
   const blob = new Blob(chunks, { type: mime });
   btn.textContent = '上傳中…';
@@ -3858,5 +3895,12 @@ function subToast(id, msg) {
 }
 </script>
 
+  <!-- 錄製中遮罩 -->
+  <div class="rec-overlay" id="recOverlay">
+    <div class="rec-dot"></div>
+    <div class="rec-label">Recording</div>
+    <div class="rec-progress" id="recProgress">準備中…</div>
+    <div class="rec-hint">錄製中請勿切換 App<br>或鎖定螢幕</div>
+  </div>
 </body>
 </html>
