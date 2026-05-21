@@ -2837,6 +2837,16 @@ function startCamRecording() {
   camRecorder.onstop = function() {
     clearInterval(camTimerInterval);
     camTimerInterval = null;
+    if (camElapsed < 10000) {
+      camChunks = [];
+      document.getElementById('camRecordBtn').classList.remove('recording');
+      document.getElementById('camFlipBtn').disabled = false;
+      var timerEl2 = document.getElementById('camTimer');
+      timerEl2.textContent = '0.0s / 10s';
+      timerEl2.classList.remove('show', 'danger');
+      toast('不足 10 秒，請重新拍攝');
+      return;
+    }
     var mt = camRecorder.mimeType || 'video/webm';
     var blob = new Blob(camChunks, { type: mt });
     var ext = mt.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
