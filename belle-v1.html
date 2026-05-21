@@ -754,10 +754,10 @@ body {
 .trim-wrap { display:flex;flex-direction:column;gap:8px; }
 .trim-label { font-size:10px;color:var(--text-dim);letter-spacing:1px; }
 .trim-preview-wrap {
-  position:relative;width:100%;height:160px;border-radius:10px;
+  position:relative;width:100%;border-radius:10px;
   background:#000;overflow:hidden;flex-shrink:0;
 }
-.trim-preview-vid { width:100%;height:100%;object-fit:contain;display:block; }
+.trim-preview-vid { width:100%;display:block; }
 .trim-play-btn {
   position:absolute;bottom:8px;right:8px;width:32px;height:32px;
   border-radius:50%;background:rgba(0,0,0,0.55);
@@ -1652,10 +1652,12 @@ body {
     <div class="upload-form-body">
       <!-- Step 2: 時間軸選取 10 秒 -->
       <div class="trim-wrap" id="trimWrap" style="display:none">
-        <div class="trim-preview-wrap">
+        <div class="trim-preview-wrap" id="trimPreviewWrap">
           <video id="trimPreviewVid" class="trim-preview-vid" muted playsinline></video>
+          <div class="crop-frame" id="cropFrame" style="display:none"></div>
           <button class="trim-play-btn" id="trimPlayBtn" onclick="toggleTrimPreview()">▶</button>
         </div>
+        <div class="crop-hint">拖曳框框調整裁切範圍</div>
         <div class="trim-label">拖動選取 10 秒片段</div>
         <div class="trim-timeline" id="trimTimeline">
           <div class="trim-thumbs-row" id="trimThumbs"></div>
@@ -1670,17 +1672,7 @@ body {
         </div>
       </div>
 
-      <!-- Step 3: 裁切框 9:8 -->
-      <div class="crop-wrap" id="cropWrap" style="display:none">
-        <div class="crop-label">調整畫面裁切範圍（9:8）</div>
-        <div class="crop-container" id="cropContainer">
-          <video id="cropVideo" class="crop-video" muted playsinline></video>
-          <div class="crop-frame" id="cropFrame"></div>
-        </div>
-        <div class="crop-hint">拖曳框框調整位置</div>
-      </div>
-
-      <!-- Step 4: 資訊 -->
+      <!-- Step 3: 資訊 -->
       <div class="field-group">
         <div class="field">
           <label>標題（自動產生）</label>
@@ -2959,24 +2951,21 @@ function openUploadForm() {
   document.getElementById('uploadDesc').value = '';
   document.getElementById('uploadProgress').classList.remove('show');
 
-  // 時間軸
   initTrimUI(fileURL);
-  // 裁切
-  initCropUI(fileURL);
 
   document.getElementById('uploadFormOverlay').classList.add('open');
 }
 function closeUploadForm() {
   document.getElementById('uploadFormOverlay').classList.remove('open');
-  const cv = document.getElementById('cropVideo');
-  cv.pause(); cv.src = '';
   const pv = document.getElementById('trimPreviewVid');
   if (pv) { clearInterval(pv._endCheck); pv.pause(); pv.src = ''; }
   const pb = document.getElementById('trimPlayBtn');
   if (pb) pb.textContent = '▶';
   document.getElementById('trimThumbs').innerHTML = '';
+  const frame = document.getElementById('cropFrame');
+  if (frame) frame.style.display = 'none';
+  cropX = 0; cropY = 0; cropW = 0; cropH = 0;
   document.getElementById('trimWrap').style.display = 'none';
-  document.getElementById('cropWrap').style.display = 'none';
   uploadFile = null;
   fromCamera = false;
 }
@@ -3056,19 +3045,11 @@ async function submitUpload() {
 
     // 計算裁切座標
     let cropData = null;
-    const cropVideo = document.getElementById('cropVideo');
-    if (fromCamera && cropVideo && cropVideo.videoWidth > 0) {
-      // 相機錄影：自動取中央最大 9:8 區域（影片像素座標）
-      const vW = cropVideo.videoWidth;
-      const vH = cropVideo.videoHeight;
-      let cw, ch;
-      if (vW / vH >= 9 / 8) { ch = vH; cw = Math.round(ch * 9 / 8); }
-      else { cw = vW; ch = Math.round(cw * 8 / 9); }
-      cropData = { x: Math.round((vW - cw) / 2), y: Math.round((vH - ch) / 2), w: cw, h: ch };
-    } else if (cropVideo && cropVideo.videoWidth > 0 && cropW > 0) {
-      // 手動裁切：CSS 像素 → 原始影片像素
-      const scaleX = cropVideo.videoWidth / cropVideo.offsetWidth;
-      const scaleY = cropVideo.videoHeight / cropVideo.offsetHeight;
+    const pvEl = document.getElementById('trimPreviewVid');
+    if (pvEl && pvEl.videoWidth > 0 && cropW > 0) {
+      // CSS 像素 → 原始影片像素（video element fills container, no letterboxing）
+      const scaleX = pvEl.videoWidth / pvEl.offsetWidth;
+      const scaleY = pvEl.videoHeight / pvEl.offsetHeight;
       cropData = {
         x: Math.round(cropX * scaleX),
         y: Math.round(cropY * scaleY),
@@ -3118,6 +3099,9 @@ function initTrimUI(fileURL) {
     renderTrimWindow(dur);
     setupTrimWindow(dur);
     generateTrimThumbs(fileURL, dur);
+    const frame = document.getElementById('cropFrame');
+    frame.style.display = 'block';
+    setTimeout(() => positionCropFrame(document.getElementById('trimPreviewWrap'), frame), 150);
   };
 }
 
@@ -3236,19 +3220,6 @@ async function generateTrimThumbs(fileURL, totalDur) {
 }
 
 // ── Crop Frame ──
-function initCropUI(fileURL) {
-  const video = document.getElementById('cropVideo');
-  video.src = fileURL;
-  if (fromCamera) return; // 相機錄影：靜默載入以取得尺寸，不顯示裁切 UI
-  const container = document.getElementById('cropContainer');
-  const frame = document.getElementById('cropFrame');
-  video.onloadedmetadata = () => {
-    video.currentTime = trimStart;
-    document.getElementById('cropWrap').style.display = 'flex';
-    setTimeout(() => positionCropFrame(container, frame), 100);
-  };
-}
-
 function positionCropFrame(container, frame) {
   const cW = container.offsetWidth;
   const cH = container.offsetHeight;
