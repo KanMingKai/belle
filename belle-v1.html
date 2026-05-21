@@ -3632,8 +3632,10 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
       title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
     }));
 
-    if (layout === 'grid9') {
-      await _doGrid9Canvas(token, segments, 'belle-grid9-' + dateStr + '.mp4', btn, origLabel);
+    if (layout === 'grid4' || layout === 'grid9') {
+      const cols = layout === 'grid4' ? 2 : 3;
+      const slotH = layout === 'grid4' ? 410 : 274;
+      await _doGridCanvas(token, segments, 'belle-' + layout + '-' + dateStr + '.mp4', btn, origLabel, cols, cols, slotH);
       return;
     }
 
@@ -3743,8 +3745,10 @@ async function downloadFavVids() {
     const today     = new Date().toISOString().slice(0, 10);
     const dateLabel = today.replaceAll('-', '.');
 
-    if (layout === 'grid9') {
-      await _doGrid9Canvas(token, segments, 'belle-grid9-favs-' + today + '.mp4', btn, '下載收藏');
+    if (layout === 'grid4' || layout === 'grid9') {
+      const cols = layout === 'grid4' ? 2 : 3;
+      const slotH = layout === 'grid4' ? 410 : 274;
+      await _doGridCanvas(token, segments, 'belle-' + layout + '-favs-' + today + '.mp4', btn, '下載收藏', cols, cols, slotH);
       return;
     }
 
@@ -3836,13 +3840,15 @@ async function _recordStrip(clips, mime) {
   return new Blob(chunks, { type: mime });
 }
 
-async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
-  // 9 格同步：所有影片一次預載、同時 play、單一 canvas 一次錄完
-  const N = 9, COLS = 3, ROWS = 3;
-  const SLOT_W = 308, SLOT_H = 274;        // cell slot（含 1px 黑框）
-  const CELL_W = SLOT_W - 2, CELL_H = SLOT_H - 2;  // 306×272 實際影片區
-  const CANVAS_W = SLOT_W * COLS;          // 924
-  const CANVAS_H = SLOT_H * ROWS;          // 822
+// cols/rows: 2×2=grid4, 3×3=grid9
+// slotH: 410 for grid4 (canvas 924×820), 274 for grid9 (canvas 924×822)
+async function _doGridCanvas(token, segments, filename, btn, origLabel, cols, rows, slotH) {
+  const N = cols * rows;
+  const CANVAS_W = 924;
+  const SLOT_W = CANVAS_W / cols;          // 462 for grid4, 308 for grid9
+  const SLOT_H = slotH;
+  const CELL_W = SLOT_W - 2, CELL_H = SLOT_H - 2;
+  const CANVAS_H = SLOT_H * rows;          // 820 for grid4, 822 for grid9
 
   if (!window.MediaRecorder) {
     throw new Error('此瀏覽器不支援 MediaRecorder，請改用 Chrome 或 Safari 15+');
@@ -3907,7 +3913,7 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
           ctx.fillStyle = '#000';
           ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
           for (let i = 0; i < vids.length; i++) {
-            const col = i % COLS, row = Math.floor(i / COLS);
+            const col = i % cols, row = Math.floor(i / cols);
             ctx.drawImage(vids[i], col * SLOT_W + 1, row * SLOT_H + 1, CELL_W, CELL_H);
           }
           if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
