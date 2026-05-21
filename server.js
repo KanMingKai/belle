@@ -161,9 +161,10 @@ async function handleMerge(req, res) {
         // 格子模式：cols × rows 同時播放，多輪用 concat
         const cols = layout === 'grid4' ? 2 : 3;
         const rows = layout === 'grid4' ? 2 : 3;
-        // grid4 沿用既有 462×410（≈924×820 輸出），grid9 用 308×273（≈924×819 同尺寸）
+        // grid4 沿用既有 462×410（≈924×820 輸出），grid9 用 308×272（≈924×816 輸出）
+        // libx264+yuv420p 要求寬高必須為偶數，273/819 為奇數會輸出損壞檔案
         const cellW = layout === 'grid4' ? 462 : 308;
-        const cellH = layout === 'grid4' ? 410 : 273;
+        const cellH = layout === 'grid4' ? 410 : 272;
         const N     = cols * rows;
 
         const roundPaths = [];
