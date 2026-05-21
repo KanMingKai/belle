@@ -3837,7 +3837,12 @@ async function _recordStrip(clips, mime) {
 }
 
 async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
-  const N = 9, COLS = 3, STRIP_W = 924, STRIP_H = 274;  // 924×822 total (even)
+  // 9 格同步：所有影片一次預載、同時 play、單一 canvas 一次錄完
+  const N = 9, COLS = 3, ROWS = 3;
+  const SLOT_W = 308, SLOT_H = 274;        // cell slot（含 1px 黑框）
+  const CELL_W = SLOT_W - 2, CELL_H = SLOT_H - 2;  // 306×272 實際影片區
+  const CANVAS_W = SLOT_W * COLS;          // 924
+  const CANVAS_H = SLOT_H * ROWS;          // 822
 
   if (!window.MediaRecorder) {
     throw new Error('此瀏覽器不支援 MediaRecorder，請改用 Chrome 或 Safari 15+');
@@ -3859,74 +3864,69 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
 
     for (let r = 0; r < totalRounds; r++) {
       const group = segments.slice(r * N, (r + 1) * N);
+      while (group.length < N) group.push(group[group.length - 1]);  // pad to N
       const roundLabel = totalRounds > 1 ? ' (' + (r + 1) + '/' + totalRounds + ')' : '';
 
-      // 逐列錄製（每次僅 3 個 decoder）
-      const rowBlobs = [];
-      for (let row = 0; row < COLS; row++) {
-        const rowClips = group.slice(row * COLS, (row + 1) * COLS);
-        _recOverlaySet('錄製第 ' + (row + 1) + ' 列' + roundLabel + '…');
-        btn.textContent = '列 ' + (row + 1) + '/3' + roundLabel;
-        rowBlobs.push(await _recordStrip(rowClips, mime));
-      }
-
-      // 將 3 列 blob 疊合為九宮格（3 個 decoder 播放列影片）
-      _recOverlaySet('合成九宮格' + roundLabel + '…');
-      btn.textContent = '合成' + roundLabel + '…';
-
-      const stackCanvas = document.createElement('canvas');
-      stackCanvas.width = STRIP_W;
-      stackCanvas.height = STRIP_H * COLS;
-      const stackCtx = stackCanvas.getContext('2d');
-      const stackRec = new MediaRecorder(stackCanvas.captureStream(30), {
-        mimeType: mime, videoBitsPerSecond: 8_000_000
-      });
-      const stackChunks = [];
-      stackRec.ondataavailable = e => { if (e.data.size > 0) stackChunks.push(e.data); };
-      stackRec.start(100);
-
-      const rowUrls = rowBlobs.map(b => URL.createObjectURL(b));
-      const rowVids = rowUrls.map(url => {
+      // ── Step 1：同時預載全部 N 支影片 ──
+      _recOverlaySet('載入影片' + roundLabel + '…');
+      btn.textContent = '載入' + roundLabel + '…';
+      const vids = group.map(seg => {
         const v = document.createElement('video');
-        v.src = url; v.muted = true; v.playsInline = true; v.preload = 'auto';
+        v.crossOrigin = 'anonymous';
+        v.src = seg.url;
+        v.muted = true; v.playsInline = true; v.preload = 'auto';
         return v;
       });
-
-      await Promise.all(rowVids.map(v => new Promise((res, rej) => {
+      await Promise.all(vids.map(v => new Promise((res, rej) => {
         v.oncanplaythrough = res;
-        v.onerror = () => rej(new Error('列合成載入失敗'));
-        setTimeout(() => rej(new Error('列合成逾時')), 60000);
+        v.onerror = () => rej(new Error('影片載入失敗'));
+        setTimeout(() => rej(new Error('影片載入逾時')), 40000);
         v.load();
       })));
 
-      await Promise.all(rowVids.map(v => v.play()));
-      await new Promise(r => setTimeout(r, 200));
+      // ── Step 2：建立 canvas + recorder ──
+      const canvas = document.createElement('canvas');
+      canvas.width = CANVAS_W; canvas.height = CANVAS_H;
+      const ctx = canvas.getContext('2d');
+      const rec = new MediaRecorder(canvas.captureStream(30), {
+        mimeType: mime, videoBitsPerSecond: 8_000_000
+      });
+      const chunks = [];
+      rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
+      // ── Step 3：同時 play 全部影片，再開始錄製 ──
+      await Promise.all(vids.map(v => v.play()));
+      await new Promise(rs => setTimeout(rs, 100));  // 等第一幀穩定
+      rec.start(100);
+      _recOverlaySet('錄製' + roundLabel + '…');
+      btn.textContent = '錄製' + roundLabel + '…';
+
+      // ── Step 4：繪製 9 格到同一個 canvas，直到所有影片結束 ──
       await new Promise(resolve => {
         const iv = setInterval(() => {
-          for (let i = 0; i < rowVids.length; i++) {
-            stackCtx.drawImage(rowVids[i], 0, i * STRIP_H, STRIP_W, STRIP_H);
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+          for (let i = 0; i < vids.length; i++) {
+            const col = i % COLS, row = Math.floor(i / COLS);
+            ctx.drawImage(vids[i], col * SLOT_W + 1, row * SLOT_H + 1, CELL_W, CELL_H);
           }
-          if (rowVids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
+          if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
         }, 1000 / 30);
       });
 
-      rowVids.forEach(v => { v.pause(); v.src = ''; });
-      rowUrls.forEach(u => URL.revokeObjectURL(u));
-      await new Promise(resolve => { stackRec.onstop = resolve; stackRec.stop(); });
-      roundBlobs.push(new Blob(stackChunks, { type: mime }));
+      vids.forEach(v => { v.pause(); v.src = ''; });
+      await new Promise(resolve => { rec.onstop = resolve; rec.stop(); });
+      roundBlobs.push(new Blob(chunks, { type: mime }));
     }
 
-    // 單輪直接用；多輪逐一播放合併
+    // ── 單輪直接用；多輪逐一播放合併 ──
     if (roundBlobs.length === 1) {
       finalBlob = roundBlobs[0];
     } else {
       _recOverlaySet('合併輪次…');
       btn.textContent = '合併中…';
-
       const concatCanvas = document.createElement('canvas');
-      concatCanvas.width = STRIP_W;
-      concatCanvas.height = STRIP_H * COLS;
+      concatCanvas.width = CANVAS_W; concatCanvas.height = CANVAS_H;
       const concatCtx = concatCanvas.getContext('2d');
       const concatRec = new MediaRecorder(concatCanvas.captureStream(30), {
         mimeType: mime, videoBitsPerSecond: 8_000_000
@@ -3934,7 +3934,6 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
       const concatChunks = [];
       concatRec.ondataavailable = e => { if (e.data.size > 0) concatChunks.push(e.data); };
       concatRec.start(100);
-
       for (const roundBlob of roundBlobs) {
         const url = URL.createObjectURL(roundBlob);
         const v = document.createElement('video');
@@ -3946,17 +3945,16 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
           v.load();
         });
         await v.play();
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(rs => setTimeout(rs, 100));
         await new Promise(resolve => {
           const iv = setInterval(() => {
-            concatCtx.drawImage(v, 0, 0, STRIP_W, STRIP_H * COLS);
+            concatCtx.drawImage(v, 0, 0, CANVAS_W, CANVAS_H);
             if (v.ended || v.paused) { clearInterval(iv); resolve(); }
           }, 1000 / 30);
         });
         v.pause(); v.src = '';
         URL.revokeObjectURL(url);
       }
-
       await new Promise(resolve => { concatRec.onstop = resolve; concatRec.stop(); });
       finalBlob = new Blob(concatChunks, { type: mime });
     }
