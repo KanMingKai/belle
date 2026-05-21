@@ -309,6 +309,7 @@ async function handleConvert(req, res) {
           '-i', inPath,
           '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
           '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+          '-vf', 'fps=30',
           '-an',
           outPath
         ], { maxBuffer: 50 * 1024 * 1024 }, (err, _o, stderr) => {

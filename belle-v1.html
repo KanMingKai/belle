@@ -3793,12 +3793,12 @@ async function _recordStrip(clips, mime) {
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  const rec = new MediaRecorder(canvas.captureStream(15), {
-    mimeType: mime, videoBitsPerSecond: 3_000_000
+  const rec = new MediaRecorder(canvas.captureStream(30), {
+    mimeType: mime, videoBitsPerSecond: 6_000_000
   });
   const chunks = [];
   rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-  rec.start(200);
+  rec.start(100);
 
   const vids = clips.map(seg => {
     const v = document.createElement('video');
@@ -3828,7 +3828,7 @@ async function _recordStrip(clips, mime) {
         ctx.drawImage(vids[i], i * W + 1, 1, cellW, cellH);
       }
       if (vids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
-    }, 1000 / 15);
+    }, 1000 / 30);
   });
 
   vids.forEach(v => { v.pause(); v.src = ''; });
@@ -3878,12 +3878,12 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
       stackCanvas.width = STRIP_W;
       stackCanvas.height = STRIP_H * COLS;
       const stackCtx = stackCanvas.getContext('2d');
-      const stackRec = new MediaRecorder(stackCanvas.captureStream(15), {
-        mimeType: mime, videoBitsPerSecond: 4_000_000
+      const stackRec = new MediaRecorder(stackCanvas.captureStream(30), {
+        mimeType: mime, videoBitsPerSecond: 8_000_000
       });
       const stackChunks = [];
       stackRec.ondataavailable = e => { if (e.data.size > 0) stackChunks.push(e.data); };
-      stackRec.start(200);
+      stackRec.start(100);
 
       const rowUrls = rowBlobs.map(b => URL.createObjectURL(b));
       const rowVids = rowUrls.map(url => {
@@ -3908,7 +3908,7 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
             stackCtx.drawImage(rowVids[i], 0, i * STRIP_H, STRIP_W, STRIP_H);
           }
           if (rowVids.every(v => v.ended || v.paused)) { clearInterval(iv); resolve(); }
-        }, 1000 / 15);
+        }, 1000 / 30);
       });
 
       rowVids.forEach(v => { v.pause(); v.src = ''; });
@@ -3928,12 +3928,12 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
       concatCanvas.width = STRIP_W;
       concatCanvas.height = STRIP_H * COLS;
       const concatCtx = concatCanvas.getContext('2d');
-      const concatRec = new MediaRecorder(concatCanvas.captureStream(15), {
-        mimeType: mime, videoBitsPerSecond: 4_000_000
+      const concatRec = new MediaRecorder(concatCanvas.captureStream(30), {
+        mimeType: mime, videoBitsPerSecond: 8_000_000
       });
       const concatChunks = [];
       concatRec.ondataavailable = e => { if (e.data.size > 0) concatChunks.push(e.data); };
-      concatRec.start(200);
+      concatRec.start(100);
 
       for (const roundBlob of roundBlobs) {
         const url = URL.createObjectURL(roundBlob);
@@ -3951,7 +3951,7 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
           const iv = setInterval(() => {
             concatCtx.drawImage(v, 0, 0, STRIP_W, STRIP_H * COLS);
             if (v.ended || v.paused) { clearInterval(iv); resolve(); }
-          }, 1000 / 15);
+          }, 1000 / 30);
         });
         v.pause(); v.src = '';
         URL.revokeObjectURL(url);
