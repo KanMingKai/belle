@@ -3631,11 +3631,6 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
       title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
     }));
 
-    if (layout === 'grid9') {
-      await _doGrid9Canvas(token, segments, 'belle-grid9-' + dateStr + '.mp4', btn, origLabel);
-      return;
-    }
-
     const dateLabel = dateStr.replaceAll('-', '.');
     if (btn) btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
@@ -3649,7 +3644,8 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
     const blob = await res.blob();
     if (btn) btn.textContent = '上傳中…';
     toast('上傳至 Google Drive…');
-    const file = await uploadToGDrive(blob, 'belle-' + dateStr + '.mp4', token);
+    const filename = layout === 'grid9' ? 'belle-grid9-' + dateStr + '.mp4' : 'belle-' + dateStr + '.mp4';
+    const file = await uploadToGDrive(blob, filename, token);
     toast('✓ 已存至 Google Drive：' + file.name);
     if (btn) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = origLabel; }, 3000); }
     return;
@@ -3742,11 +3738,6 @@ async function downloadFavVids() {
     const today     = new Date().toISOString().slice(0, 10);
     const dateLabel = today.replaceAll('-', '.');
 
-    if (layout === 'grid9') {
-      await _doGrid9Canvas(token, segments, 'belle-grid9-favs-' + today + '.mp4', btn, '下載收藏');
-      return;
-    }
-
     btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
     const res = await fetch(MERGE_API, {
@@ -3760,7 +3751,7 @@ async function downloadFavVids() {
     }
 
     const blob     = await res.blob();
-    const filename = 'belle-favs-' + today + '.mp4';
+    const filename = layout === 'grid9' ? 'belle-grid9-favs-' + today + '.mp4' : 'belle-favs-' + today + '.mp4';
     toast('上傳至 Google Drive…');
     btn.textContent = '上傳中…';
     const file = await uploadToGDrive(blob, filename, token);
