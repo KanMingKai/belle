@@ -751,33 +751,36 @@ body {
 }
 
 /* ── TRIM TIMELINE ── */
-.trim-wrap { display:flex;flex-direction:column;gap:6px; }
+.trim-wrap { display:flex;flex-direction:column;gap:8px; }
 .trim-label { font-size:10px;color:var(--text-dim);letter-spacing:1px; }
+.trim-preview-wrap {
+  position:relative;width:100%;height:160px;border-radius:10px;
+  background:#000;overflow:hidden;flex-shrink:0;
+}
+.trim-preview-vid { width:100%;height:100%;object-fit:contain;display:block; }
+.trim-play-btn {
+  position:absolute;bottom:8px;right:8px;width:32px;height:32px;
+  border-radius:50%;background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:12px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
 .trim-timeline {
-  position:relative;height:44px;border-radius:8px;
-  background:rgba(164,137,119,0.1);border:1px solid rgba(164,137,119,0.2);
-  overflow:hidden;cursor:pointer;
+  position:relative;height:56px;border-radius:6px;
+  background:rgba(164,137,119,0.1);overflow:hidden;touch-action:none;
 }
-.trim-thumbs-row {
-  display:flex;height:100%;gap:1px;padding:2px;
-}
+.trim-thumbs-row { display:flex;height:100%; }
 .trim-thumb {
-  flex:1;height:100%;background:rgba(164,137,119,0.15);border-radius:3px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:8px;color:rgba(212,184,150,0.3);overflow:hidden;
+  flex:1;height:100%;background:rgba(164,137,119,0.15);
+  background-size:cover;background-position:center;overflow:hidden;
 }
-.trim-thumb img { width:100%;height:100%;object-fit:cover;border-radius:3px; }
-.trim-selection {
-  position:absolute;top:0;height:100%;
-  background:rgba(212,184,150,0.18);border:2px solid var(--sand);
-  border-radius:6px;pointer-events:none;
+.trim-shade {
+  position:absolute;top:0;bottom:0;background:rgba(0,0,0,0.52);pointer-events:none;
 }
-.trim-handle {
-  position:absolute;top:0;width:14px;height:100%;
-  background:var(--sand);border-radius:4px;cursor:ew-resize;
-  display:flex;align-items:center;justify-content:center;
-  font-size:9px;color:var(--dark-brown);user-select:none;
+.trim-window {
+  position:absolute;top:0;bottom:0;border:2px solid var(--sand);
+  border-radius:3px;cursor:grab;box-sizing:border-box;z-index:2;touch-action:none;
 }
+.trim-window:active { cursor:grabbing; }
 .trim-time-labels { display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim); }
 
 /* ── CROP FRAME ── */
@@ -1649,16 +1652,20 @@ body {
     <div class="upload-form-body">
       <!-- Step 2: 時間軸選取 10 秒 -->
       <div class="trim-wrap" id="trimWrap" style="display:none">
-        <div class="trim-label">選取 10 秒區間</div>
+        <div class="trim-preview-wrap">
+          <video id="trimPreviewVid" class="trim-preview-vid" muted playsinline></video>
+          <button class="trim-play-btn" id="trimPlayBtn" onclick="toggleTrimPreview()">▶</button>
+        </div>
+        <div class="trim-label">拖動選取 10 秒片段</div>
         <div class="trim-timeline" id="trimTimeline">
           <div class="trim-thumbs-row" id="trimThumbs"></div>
-          <div class="trim-selection" id="trimSel"></div>
-          <div class="trim-handle" id="trimHandleL" style="left:0">⋮</div>
-          <div class="trim-handle" id="trimHandleR" style="right:0">⋮</div>
+          <div class="trim-shade" id="trimShadeL"></div>
+          <div class="trim-shade" id="trimShadeR"></div>
+          <div class="trim-window" id="trimWindow"></div>
         </div>
         <div class="trim-time-labels">
-          <span id="trimStartLbl">0s</span>
-          <span id="trimEndLbl">10s</span>
+          <span id="trimStartLbl">0.0s</span>
+          <span id="trimEndLbl">10.0s</span>
           <span id="trimTotalLbl">/ 0s</span>
         </div>
       </div>
@@ -2963,6 +2970,11 @@ function closeUploadForm() {
   document.getElementById('uploadFormOverlay').classList.remove('open');
   const cv = document.getElementById('cropVideo');
   cv.pause(); cv.src = '';
+  const pv = document.getElementById('trimPreviewVid');
+  if (pv) { clearInterval(pv._endCheck); pv.pause(); pv.src = ''; }
+  const pb = document.getElementById('trimPlayBtn');
+  if (pb) pb.textContent = '▶';
+  document.getElementById('trimThumbs').innerHTML = '';
   document.getElementById('trimWrap').style.display = 'none';
   document.getElementById('cropWrap').style.display = 'none';
   uploadFile = null;
@@ -3093,83 +3105,134 @@ async function submitUpload() {
 
 // ── Trim Timeline ──
 function initTrimUI(fileURL) {
-  const tempVid = document.createElement('video');
-  tempVid.src = fileURL;
-  tempVid.preload = 'metadata';
-  tempVid.onloadedmetadata = () => {
-    const dur = tempVid.duration;
-    const maxDur = 10;
+  const pv = document.getElementById('trimPreviewVid');
+  pv.src = fileURL;
+  pv.preload = 'metadata';
+  pv.onloadedmetadata = () => {
+    const dur = pv.duration;
     trimStart = 0;
-    trimEnd = Math.min(maxDur, dur);
+    trimEnd = Math.min(10, dur);
+    pv.currentTime = 0;
     document.getElementById('trimTotalLbl').textContent = '/ ' + Math.round(dur) + 's';
     document.getElementById('trimWrap').style.display = 'flex';
-    renderTrimSelection(dur);
-    setupTrimDrag(dur);
+    renderTrimWindow(dur);
+    setupTrimWindow(dur);
+    generateTrimThumbs(fileURL, dur);
   };
 }
 
-function renderTrimSelection(totalDur) {
+function renderTrimWindow(totalDur) {
   const timeline = document.getElementById('trimTimeline');
-  const w = timeline.offsetWidth;
+  const w = timeline.getBoundingClientRect().width || timeline.offsetWidth;
+  if (!w) return;
   const pxPerSec = w / totalDur;
-  const selEl = document.getElementById('trimSel');
-  const lEl = document.getElementById('trimHandleL');
-  const rEl = document.getElementById('trimHandleR');
-  const lPx = trimStart * pxPerSec;
-  const rPx = trimEnd * pxPerSec;
-  selEl.style.left = lPx + 'px';
-  selEl.style.width = (rPx - lPx) + 'px';
-  lEl.style.left = (lPx - 7) + 'px';
-  rEl.style.left = (rPx - 7) + 'px';
+  const winW = Math.min(10 * pxPerSec, w);
+  const leftPx = trimStart * pxPerSec;
+  const win = document.getElementById('trimWindow');
+  const shL = document.getElementById('trimShadeL');
+  const shR = document.getElementById('trimShadeR');
+  win.style.left = leftPx + 'px';
+  win.style.width = winW + 'px';
+  shL.style.left = '0';
+  shL.style.width = leftPx + 'px';
+  shR.style.left = (leftPx + winW) + 'px';
+  shR.style.width = Math.max(0, w - leftPx - winW) + 'px';
   document.getElementById('trimStartLbl').textContent = trimStart.toFixed(1) + 's';
   document.getElementById('trimEndLbl').textContent = trimEnd.toFixed(1) + 's';
 }
 
-function setupTrimDrag(totalDur) {
+function setupTrimWindow(totalDur) {
   const timeline = document.getElementById('trimTimeline');
-  const lHandle = document.getElementById('trimHandleL');
-  const rHandle = document.getElementById('trimHandleR');
+  const win = document.getElementById('trimWindow');
+  const getX = e => e.touches ? e.touches[0].clientX : e.clientX;
 
-  function makeDragHandler(isLeft) {
-    return function(startE) {
-      startE.preventDefault();
-      const rect = timeline.getBoundingClientRect();
-      const startX = startE.touches ? startE.touches[0].clientX : startE.clientX;
-      const startVal = isLeft ? trimStart : trimEnd;
-
-      function onMove(e) {
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const dx = clientX - startX;
-        const dSec = (dx / rect.width) * totalDur;
-        if (isLeft) {
-          trimStart = Math.max(0, Math.min(startVal + dSec, trimEnd - 1));
-        } else {
-          trimEnd = Math.min(totalDur, Math.max(startVal + dSec, trimStart + 1));
-          if (trimEnd - trimStart > 10) {
-            if (isLeft) trimStart = trimEnd - 10;
-            else trimEnd = trimStart + 10;
-          }
-        }
-        if (trimEnd - trimStart > 10) trimEnd = trimStart + 10;
-        renderTrimSelection(totalDur);
-      }
-      function onUp() {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('touchend', onUp);
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onUp);
-    };
+  function onStart(startE) {
+    startE.preventDefault();
+    const rect = timeline.getBoundingClientRect();
+    const startX = getX(startE);
+    const startTrimStart = trimStart;
+    function onMove(e) {
+      const dx = getX(e) - startX;
+      const dSec = (dx / rect.width) * totalDur;
+      const maxStart = Math.max(0, totalDur - 10);
+      trimStart = Math.max(0, Math.min(startTrimStart + dSec, maxStart));
+      trimEnd = Math.min(trimStart + 10, totalDur);
+      renderTrimWindow(totalDur);
+      const pv = document.getElementById('trimPreviewVid');
+      if (pv && pv.paused) pv.currentTime = trimStart;
+      if (e.cancelable) e.preventDefault();
+    }
+    function onEnd() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
   }
+  win.onmousedown = onStart;
+  win.ontouchstart = onStart;
+}
 
-  lHandle.onmousedown = makeDragHandler(true);
-  lHandle.ontouchstart = makeDragHandler(true);
-  rHandle.onmousedown = makeDragHandler(false);
-  rHandle.ontouchstart = makeDragHandler(false);
+function toggleTrimPreview() {
+  const vid = document.getElementById('trimPreviewVid');
+  const btn = document.getElementById('trimPlayBtn');
+  if (!vid || !vid.src) return;
+  if (vid.paused) {
+    vid.currentTime = trimStart;
+    vid.play().catch(() => {});
+    btn.textContent = '⏸';
+    vid._endCheck = setInterval(() => {
+      if (vid.currentTime >= trimEnd) {
+        vid.pause();
+        vid.currentTime = trimStart;
+        btn.textContent = '▶';
+        clearInterval(vid._endCheck);
+      }
+    }, 80);
+  } else {
+    vid.pause();
+    btn.textContent = '▶';
+    clearInterval(vid._endCheck);
+  }
+}
+
+async function generateTrimThumbs(fileURL, totalDur) {
+  const row = document.getElementById('trimThumbs');
+  row.innerHTML = '';
+  const N = 8;
+  const divs = [];
+  for (let i = 0; i < N; i++) {
+    const d = document.createElement('div');
+    d.className = 'trim-thumb';
+    row.appendChild(d);
+    divs.push(d);
+  }
+  const vid = document.createElement('video');
+  vid.src = fileURL;
+  vid.muted = true;
+  vid.preload = 'metadata';
+  const canvas = document.createElement('canvas');
+  canvas.width = 40; canvas.height = 56;
+  const ctx = canvas.getContext('2d');
+  try {
+    await new Promise(r => { vid.onloadedmetadata = r; vid.load(); });
+    for (let i = 0; i < N; i++) {
+      vid.currentTime = (i / Math.max(N - 1, 1)) * totalDur;
+      await new Promise(r => { vid.onseeked = r; });
+      ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+      if (divs[i]) {
+        divs[i].style.backgroundImage = 'url(' + canvas.toDataURL('image/jpeg', 0.5) + ')';
+      }
+    }
+  } catch (e) {
+    console.warn('[trim thumbs]', e);
+  } finally {
+    vid.src = '';
+  }
 }
 
 // ── Crop Frame ──
