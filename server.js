@@ -287,6 +287,49 @@ async function handleMerge(req, res) {
   });
 }
 
+// ── 路由：POST /convert ──
+// Accepts raw video blob (any format), returns MP4 (libx264 + yuv420p + faststart)
+async function handleConvert(req, res) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'igconv-'));
+  const inPath  = path.join(tmpDir, 'input.webm');
+  const outPath = path.join(tmpDir, 'output.mp4');
+
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', async () => {
+    try {
+      fs.writeFileSync(inPath, Buffer.concat(chunks));
+      await new Promise((resolve, reject) => {
+        execFile(ffmpegPath, [
+          '-y', '-i', inPath,
+          '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
+          '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+          '-an',
+          outPath
+        ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
+      });
+      const stat = fs.statSync(outPath);
+      res.writeHead(200, {
+        'Content-Type':        'video/mp4',
+        'Content-Length':      stat.size,
+        'Content-Disposition': 'attachment; filename="converted.mp4"',
+      });
+      fs.createReadStream(outPath).pipe(res).on('finish', () => {
+        try { fs.unlinkSync(inPath); fs.unlinkSync(outPath); fs.rmdirSync(tmpDir); } catch (_) {}
+      });
+    } catch (e) {
+      console.error('[convert error]', e.message);
+      try { fs.unlinkSync(inPath); } catch (_) {}
+      try { fs.unlinkSync(outPath); } catch (_) {}
+      try { fs.rmdirSync(tmpDir); } catch (_) {}
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+  });
+}
+
 // ── 啟動診斷：偵測 build 時下載的 ffmpeg-draw binary ──
 const DRAW_FFMPEG_PATH = path.join(__dirname, 'ffmpeg-draw');
 const filmFfmpegPath = fs.existsSync(DRAW_FFMPEG_PATH) ? DRAW_FFMPEG_PATH : null;
@@ -311,6 +354,11 @@ http.createServer((req, res) => {
 
   if (req.method === 'POST' && req.url === '/merge') {
     handleMerge(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/convert') {
+    handleConvert(req, res);
     return;
   }
 

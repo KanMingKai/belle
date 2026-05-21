@@ -3397,6 +3397,7 @@ function closeFavPlay() {
 // ── 下載今日影片（Render 合併 → 存至 Google Drive） ──
 var _dlBusy = false;
 var MERGE_API        = 'https://belle-backend-4htn.onrender.com/merge';
+var CONVERT_API      = 'https://belle-backend-4htn.onrender.com/convert';
 var GDRIVE_CLIENT_ID = '656396234390-6k89u2a4b0j4kckj9ipro87331ki3vs0.apps.googleusercontent.com';
 var GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
 var _gTokenClient    = null;
@@ -3631,6 +3632,11 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
       title:    '@' + ((CU && CU.handle) || 'belle') + ' · ' + _fmtSlotTime(v.time_slot)
     }));
 
+    if (layout === 'grid9') {
+      await _doGrid9Canvas(token, segments, 'belle-grid9-' + dateStr + '.mp4', btn, origLabel);
+      return;
+    }
+
     const dateLabel = dateStr.replaceAll('-', '.');
     if (btn) btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
@@ -3644,8 +3650,7 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
     const blob = await res.blob();
     if (btn) btn.textContent = '上傳中…';
     toast('上傳至 Google Drive…');
-    const filename = layout === 'grid9' ? 'belle-grid9-' + dateStr + '.mp4' : 'belle-' + dateStr + '.mp4';
-    const file = await uploadToGDrive(blob, filename, token);
+    const file = await uploadToGDrive(blob, 'belle-' + dateStr + '.mp4', token);
     toast('✓ 已存至 Google Drive：' + file.name);
     if (btn) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = origLabel; }, 3000); }
     return;
@@ -3738,6 +3743,11 @@ async function downloadFavVids() {
     const today     = new Date().toISOString().slice(0, 10);
     const dateLabel = today.replaceAll('-', '.');
 
+    if (layout === 'grid9') {
+      await _doGrid9Canvas(token, segments, 'belle-grid9-favs-' + today + '.mp4', btn, '下載收藏');
+      return;
+    }
+
     btn.textContent = '合併中…';
     toast('伺服器處理影片中…');
     const res = await fetch(MERGE_API, {
@@ -3751,7 +3761,7 @@ async function downloadFavVids() {
     }
 
     const blob     = await res.blob();
-    const filename = layout === 'grid9' ? 'belle-grid9-favs-' + today + '.mp4' : 'belle-favs-' + today + '.mp4';
+    const filename = 'belle-favs-' + today + '.mp4';
     toast('上傳至 Google Drive…');
     btn.textContent = '上傳中…';
     const file = await uploadToGDrive(blob, filename, token);
@@ -3952,9 +3962,19 @@ async function _doGrid9Canvas(token, segments, filename, btn, origLabel) {
     pausedVids.forEach(v => { try { v.play(); } catch (_) {} });
   }
 
+  btn.textContent = '轉換中…';
+  toast('轉換格式中…');
+  const convertRes = await fetch(CONVERT_API, {
+    method: 'POST',
+    headers: { 'Content-Type': finalBlob.type || 'video/webm' },
+    body: finalBlob
+  });
+  if (!convertRes.ok) throw new Error('格式轉換失敗：' + convertRes.status);
+  const mp4Blob = await convertRes.blob();
+
   btn.textContent = '上傳中…';
   toast('上傳至 Google Drive…');
-  const file = await uploadToGDrive(finalBlob, filename, token);
+  const file = await uploadToGDrive(mp4Blob, filename, token);
   toast('✓ 已存至 Google Drive：' + file.name);
   btn.textContent = '✓';
   setTimeout(() => { btn.textContent = origLabel; }, 3000);
