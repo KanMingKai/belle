@@ -1348,7 +1348,6 @@ body {
       <div class="grid-hdr">
         <div class="grid-hdr-label">所有影片</div>
         <div class="grid-hdr-count" id="gridCount">0 部</div>
-        <button id="dlTodayBtn" onclick="openVlogSheet('',this)" style="margin-left:auto;padding:4px 12px;border-radius:16px;border:1px solid rgba(212,184,150,0.4);background:transparent;color:var(--sand);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">下載今日</button>
       </div>
       <div class="vids-grid" id="vidsGrid">
         <div class="vids-empty" style="grid-column:1/-1">
@@ -3522,7 +3521,7 @@ var _gAccessToken    = null;
   const exp = parseInt(params.get('expires_in') || '3599', 10);
   setTimeout(() => { _gAccessToken = null; }, (exp - 60) * 1000);
   window.addEventListener('load', function() {
-    setTimeout(function() { toast('✓ Google 授權成功，請再按「下載今日」'); }, 1200);
+    setTimeout(function() { toast('✓ Google 授權成功，請再按下載按鈕'); }, 1200);
   });
 })();
 
@@ -3665,10 +3664,6 @@ async function downloadDateVids(dateStr, btn) {
   }
 }
 
-async function downloadTodayVids(btn) {
-  const today = new Date().toISOString().slice(0, 10);
-  await downloadDateVids(today, btn);
-}
 
 // ── Vlog Sheet（收藏 & 日期共用）──
 // dateStr: 'YYYY-MM-DD' → 日期下載；'' or undefined → 收藏下載
@@ -3715,7 +3710,7 @@ async function _downloadDateWithLayout(dateStr, layout, greeting, triggerBtn) {
   if (!vids.length) { toast('該日沒有影片'); return; }
   vids = _padToGridSize(vids, layout);
 
-  const btn       = triggerBtn || document.getElementById('dlTodayBtn');
+  const btn       = triggerBtn || null;
   const origLabel = btn ? btn.textContent : '';
   _dlBusy = true;
   if (btn) { btn.disabled = true; btn.textContent = '授權中…'; }
