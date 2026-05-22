@@ -69,7 +69,7 @@ body {
 }
 .bnav-item {
   flex:1;display:flex;flex-direction:column;align-items:center;
-  gap:3px;font-size:8px;color:rgba(164,137,119,0.3);letter-spacing:0.5px;
+  gap:3px;font-size:8px;color:rgba(164,137,119,0.6);letter-spacing:0.5px;
   cursor:pointer;transition:color 0.2s;
 }
 .bnav-item.active,.bnav-item:hover { color:var(--sand); }
@@ -435,11 +435,11 @@ body {
 .vids-date-dl-btn {
   font-size:10px;letter-spacing:0.3px;text-transform:none;
   padding:3px 10px;border-radius:14px;cursor:pointer;
-  border:1px solid rgba(164,137,119,0.35);
-  background:transparent;color:rgba(212,184,150,0.6);
+  border:1px solid rgba(164,137,119,0.6);
+  background:transparent;color:rgba(212,184,150,0.88);
   font-family:'DM Sans',sans-serif;transition:color 0.2s,border-color 0.2s;
 }
-.vids-date-dl-btn:hover { color:var(--sand);border-color:var(--brown); }
+.vids-date-dl-btn:hover { color:var(--cream);border-color:var(--sand); }
 .vids-date-dl-btn:disabled { opacity:0.4;cursor:default; }
 .vids-empty {
   grid-column:1/-1;display:flex;flex-direction:column;
@@ -1045,6 +1045,14 @@ body {
   font-size:8px;letter-spacing:1px;color:rgba(255,255,255,0.9);
   background:rgba(0,0,0,0.35);padding:2px 7px;border-radius:8px;text-transform:uppercase;
 }
+#dlFavBtn {
+  font-size:10px;letter-spacing:0.3px;padding:3px 10px;border-radius:14px;cursor:pointer;
+  border:1px solid rgba(164,137,119,0.6);background:transparent;
+  color:rgba(212,184,150,0.88);font-family:'DM Sans',sans-serif;
+  transition:color 0.2s,border-color 0.2s;
+}
+#dlFavBtn:hover { color:var(--cream);border-color:var(--sand); }
+#dlFavBtn:disabled { opacity:0.4;cursor:default; }
 .fav-grid {
   display:grid;grid-template-columns:repeat(3,1fr);align-content:start;gap:2px;padding:0 2px 2px;
 }
