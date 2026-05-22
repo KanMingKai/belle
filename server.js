@@ -101,58 +101,6 @@ async function handleMerge(req, res) {
         )
       ));
 
-      // ── Step 2: 每段燒入問候語 + 標題（txt.html 風格：漸層+白線+字型）──
-      const canLabel = filmFfmpegPath && fs.existsSync(FONT_PATH);
-      if (canLabel) {
-        // 選用 Playfair/Josefin（若 build 下載成功），否則 fallback DejaVu
-        const gmFont  = fs.existsSync(PLAYFAIR_FONT) ? escapeFfmpegText(PLAYFAIR_FONT)  : escapeFfmpegText(FONT_PATH);
-        const tagFont = fs.existsSync(JOSEFIN_FONT)  ? escapeFfmpegText(JOSEFIN_FONT)   : escapeFfmpegText(FONT_PATH);
-
-        for (let i = 0; i < vidPaths.length; i++) {
-          const seg     = segments[i] || {};
-          const segGm   = (seg.greeting || '').replace(/[^\x00-\x7F]/g, '').trim();
-          const segTitle= (seg.title    || '').replace(/[^\x00-\x7F]/g, '').trim();
-          if (!segGm && !segTitle) continue;
-
-          const labelPath = path.join(tmpDir, 'v' + i + '_t.mp4');
-          tmpFiles.push(labelPath);
-
-          // drawbox with alpha triggers ffmpeg filter reinit (-22) on yuv420p streams.
-          // Use drawtext+shadow for visibility instead — confirmed stable.
-          const f = ['setsar=1'];
-
-          if (segGm) f.push(
-            "drawtext=fontfile='" + gmFont + "':text='" + escapeFfmpegText(segGm) +
-            "':x=16:y=h-text_h-30:fontsize=18:fontcolor=white@0.9" +
-            ":shadowcolor=black@0.7:shadowx=2:shadowy=2"
-          );
-
-          if (segTitle) f.push(
-            "drawtext=fontfile='" + tagFont + "':text='" + escapeFfmpegText(segTitle.toUpperCase()) +
-            "':x=16:y=h-text_h-8:fontsize=11:fontcolor=white@0.75" +
-            ":shadowcolor=black@0.5:shadowx=1:shadowy=1"
-          );
-
-          try {
-            await new Promise((resolve, reject) => {
-              execFile(filmFfmpegPath, [
-                '-y', '-i', vidPaths[i],
-                '-vf', f.join(','),
-                '-c:v', 'libx264', '-crf', '23', '-preset', 'ultrafast',
-                '-c:a', 'aac', '-b:a', '128k',
-                labelPath
-              ], (err, _o, stderr) => { if (err) reject(new Error(stderr)); else resolve(); });
-            });
-            vidPaths[i] = labelPath;
-            console.log('[label] segment', i, 'done');
-          } catch (e) {
-            const errMsg = e.message || '';
-            console.warn('[label] segment', i, 'failed (tail):', errMsg.slice(-800));
-            console.warn('[label] segment', i, 'filter was:', f.join(',').slice(0, 300));
-          }
-        }
-      }
-
       // ── Step 3: 套用版型 ──
       const outPath = path.join(tmpDir, 'merged.mp4');
       tmpFiles.push(outPath);
